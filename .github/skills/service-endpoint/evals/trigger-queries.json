@@ -1,0 +1,82 @@
+[
+  {
+    "query": "Plan exposing Inventory's existing GET /stock/:id/adjustments through the staff gateway and history view, keeping the customer app unexposed. Include request validation and error cases; do not implement yet.",
+    "should_trigger": true
+  },
+  {
+    "query": "We need a persistence-backed customer search route with strict query validation and the usual pagination envelope. Trace the owner API and intended gateway exposure before editing.",
+    "should_trigger": true
+  },
+  {
+    "query": "Add a nullable field to Inventory's stock response and show it in the staff app. Plan the response schema and loading/unavailable states across the API and client.",
+    "should_trigger": true
+  },
+  {
+    "query": "Plan an internal Inventory route rejecting conflicting adjustments with 409 and malformed amounts with 400, using only its own database and staying unexposed to either app.",
+    "should_trigger": true
+  },
+  {
+    "query": "staff can't browse older adjustment reasons yet. can you plan a paginated history API slice and its staff-only exposure rather than fetching everything into the browser?",
+    "should_trigger": true
+  },
+  {
+    "query": "Change the existing customer API filter to reject unknown query keys. Include Fastify-injection acceptance cases and preserve the current error envelope.",
+    "should_trigger": true
+  },
+  {
+    "query": "Introduce a locally persisted Inventory adjustment annotation. Plan its numbered migration, HTTP request/response and concurrent-update rejection without adding cross-service queries.",
+    "should_trigger": true
+  },
+  {
+    "query": "The staff history endpoint currently hides upstream 502s as empty results. Plan its gateway error propagation and client response-validation changes.",
+    "should_trigger": true
+  },
+  {
+    "query": "Expose an existing Finance read endpoint only to staff. Trace the fixed gateway allowlist and verify that the customer gateway cannot forward it.",
+    "should_trigger": true
+  },
+  {
+    "query": "Plan changing an Orders HTTP response field while keeping the wire event unchanged. Identify affected app schemas and public HTTP tests.",
+    "should_trigger": true
+  },
+  {
+    "query": "Explain the existing GET /stock/:id/adjustments response for a README example. Do not change its validation, database query, gateway allowlist or client exposure.",
+    "should_trigger": false
+  },
+  {
+    "query": "Suggest a clearer name for a local variable called endpoint in a standalone test helper. Keep service routes, requests, persistence and gateway behavior unchanged.",
+    "should_trigger": false
+  },
+  {
+    "query": "Explain how Fastify injection differs from a real HTTP socket in the existing test suite. This is a terminology question, not an endpoint or test change.",
+    "should_trigger": false
+  },
+  {
+    "query": "Fix a typo in the README API table heading without changing any documented route, response shape or behavior.",
+    "should_trigger": false
+  },
+  {
+    "query": "Explain SQL parameter placeholders in the current Inventory history query. Do not modify the query, persistence schema or API.",
+    "should_trigger": false
+  },
+  {
+    "query": "Plan a new OrderCompleted wire version and subscriber rollout only. There is no service HTTP endpoint or app response change in this task.",
+    "should_trigger": false
+  },
+  {
+    "query": "Review static CSS spacing around the staff history card. Requests, handlers, controls and loading/error behavior remain unchanged.",
+    "should_trigger": false
+  },
+  {
+    "query": "Explain what an API gateway allowlist means in this fictional demo, not how to add or change a route.",
+    "should_trigger": false
+  },
+  {
+    "query": "Compare HTTP 400 and 409 conceptually for a training note. Do not propose repository endpoints or modify validation.",
+    "should_trigger": false
+  },
+  {
+    "query": "Locate the source file containing the existing /health endpoint and report its path only. No API change or end-to-end verification is needed.",
+    "should_trigger": false
+  }
+]

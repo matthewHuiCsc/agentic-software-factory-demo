@@ -1,0 +1,20 @@
+{
+  "skill_name": "service-endpoint",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Working from the boba repository root, plan a staff-visible stock-adjustment history view. Inventory already implements GET /stock/:id/adjustments, but the staff gateway currently exposes only POST for adjustments. Read the existing owner route, gateway allowlist, shared response schemas and staff app. Keep customer exposure unchanged. Describe the smallest vertical slice and HTTP/browser acceptance cases; do not edit files or run the application.",
+      "expected_output": "A repo-grounded plan that reuses Inventory's owner-local paginated read without an unnecessary migration, adds a fixed staff-only GET gateway route and wires validated responses into the staff UI. It covers invalid UUID/query, missing stock, upstream error propagation, customer non-exposure and loading/empty/error/keyboard behavior. It identifies relevant HTTP, gateway and browser tests without claiming they ran."
+    },
+    {
+      "id": 2,
+      "prompt": "We want an optional exact reason filter on Inventory's existing GET /stock/:id/adjustments route. From the repository root, inspect the current persistence-backed HTTP seam and plan the request, query and tests. Reject empty or unknown query fields, preserve pagination and camelCase JSON, and keep this change internal. Do not implement or run the stack.",
+      "expected_output": "A concrete owner-local API plan using strict Zod query validation, parameterized SQL, existing pagination and error envelopes. It covers valid filtering, malformed input, missing stock and unfiltered behavior through Fastify injection with the integration fixture. It avoids SQL in shared packages and unnecessary gateway/UI exposure or migrations, and distinguishes proposed verification from executed evidence."
+    },
+    {
+      "id": 3,
+      "prompt": "The proposed staff stock-history view receives an Inventory network failure, while Orders and Finance are still reachable. Read packages/gateway-runtime/src/index.ts and packages/web-ui/src/index.tsx from the repository root. Plan how the API response and UI should represent this state without hiding it as an empty successful history. Do not edit files or make network calls.",
+      "expected_output": "A response/client plan that preserves upstream failure status and explicitly shows Inventory unavailability or error rather than a success-shaped empty array. Other owner sections remain independently usable. The plan names response validation and loading/empty/error behavior, includes focused gateway/UI acceptance cases and does not treat order completion as proof of downstream success."
+    }
+  ]
+}

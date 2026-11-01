@@ -1,0 +1,20 @@
+{
+  "skill_name": "compose-journey",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Use this supplied observation set, not the live demo: a pickup is completed and its outbox fact is published; Inventory's OrderCompleted effect is failed for insufficient stock; Finance and Customers completion effects are processed; an unrelated OrderPlaced receipt is processed. Read the repository's recovery APIs and tests, then diagnose and plan bounded repair/verification. Do not change stock, run Compose or retry anything.",
+      "expected_output": "A diagnosis naming Inventory as the failed owner and rejecting completed order, publication confirmation or placement receipt as proof of successful completion effects. It plans reasoned stock repair, Inventory-only retry with original operation identity and exact before/after effect checks. It clearly labels the supplied observations and proposed verification, with no claim that the live stack was inspected or repaired."
+    },
+    {
+      "id": 2,
+      "prompt": "From the repository root, read README.md, .github/workflows/ci.yml, tests/integration/events.test.ts and the browser journey/recovery tests. Plan acceptance evidence for customer placement, staff completion, duplicate delivery and owner retry in a disposable demo copy. The existing local Compose demo must not be touched. Do not execute commands; list the relevant existing seams and their limits.",
+      "expected_output": "A bounded acceptance plan reusing the pinned package manager and README/CI commands, with isolated PostgreSQL/RabbitMQ tests plus browser evidence against a separate healthy application stack. It checks all ten services or reports blockers, verifies exact stock/one sale/customer deltas independently, and keeps pending/failed/skipped/unavailable states honest. It warns that browser tests create fictional records and adjust stock, preserves/restores fixture data and distinguishes isolated cleanup from destructive normal-demo volume reset."
+    },
+    {
+      "id": 3,
+      "prompt": "Consider only these hypothetical outage observations: broker loss leaves an Orders mutation and unpublished outbox work durable; a later Inventory database loss makes its journey section unavailable; all health checks become green after recovery, but no completion-effect query has yet been made. Read the repository's runtime/recovery guidance and plan the missing checks. No outages, network calls or restarts are authorized.",
+      "expected_output": "A recovery evidence plan distinguishing publication pending from owner unavailability and refusing to equate green health or restart with applied completion effects. It calls for baseline/final owner API values, exact-once retained-work checks, a safe isolated outage boundary and finally/cleanup restoration of only the named dependency if such testing is later authorized. It explicitly marks actual outage handling and final effect application as unverified."
+    }
+  ]
+}

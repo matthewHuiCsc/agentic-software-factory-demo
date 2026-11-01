@@ -1,0 +1,82 @@
+[
+  {
+    "query": "Verify the customer placement to staff completion journey in a disposable Compose demo and collect exact downstream effect evidence.",
+    "should_trigger": true
+  },
+  {
+    "query": "A pickup is completed but stock remains failed. Diagnose the journey records and plan Inventory-only repair and retry without touching the live demo yet.",
+    "should_trigger": true
+  },
+  {
+    "query": "Plan real-broker duplicate completion delivery verification showing stock, ledger and customer changes exactly once.",
+    "should_trigger": true
+  },
+  {
+    "query": "We need a safe broker-outage recovery check in an isolated demo copy. Preserve durable outbox work and restore the dependency even if assertions fail.",
+    "should_trigger": true
+  },
+  {
+    "query": "The customer processing panel shows Inventory unavailable after a DB outage. Plan evidence checks to distinguish that from pending or successful effects.",
+    "should_trigger": true
+  },
+  {
+    "query": "can you plan full-stack acceptance for mobile rejection and staff pickup completion using the existing browser suites and owner APIs?",
+    "should_trigger": true
+  },
+  {
+    "query": "Review this recovery evidence: all containers restarted healthy, but no owner effect values were checked. Tell us what acceptance proof is still missing.",
+    "should_trigger": true
+  },
+  {
+    "query": "Diagnose why unpublished order facts remain after broker recovery and plan bounded API-based verification without restarting unrelated services.",
+    "should_trigger": true
+  },
+  {
+    "query": "Plan reproducing insufficient stock, restocking with a reason and retrying the failed completion in a disposable Compose project.",
+    "should_trigger": true
+  },
+  {
+    "query": "Audit proposed customer/staff journey acceptance that checks only completed order status. Identify missing publication, owner-effect and duplicate evidence.",
+    "should_trigger": true
+  },
+  {
+    "query": "Explain what docker compose config validates, without running the stack or claiming customer-to-staff acceptance.",
+    "should_trigger": false
+  },
+  {
+    "query": "Fix a typo in the README's Compose command comment, leaving commands and runtime behavior unchanged.",
+    "should_trigger": false
+  },
+  {
+    "query": "Compare container liveness and readiness conceptually. No boba processing diagnosis or recovery check is requested.",
+    "should_trigger": false
+  },
+  {
+    "query": "Improve static CSS spacing on the pickup card without changing its controls, API calls or customer journey behavior.",
+    "should_trigger": false
+  },
+  {
+    "query": "Explain the existing stock-adjustment JSON shape for documentation only. Do not run apps or diagnose downstream effects.",
+    "should_trigger": false
+  },
+  {
+    "query": "Rename a standalone helper called recovery in a unit test without changing assertions, fixtures, app state or broker handling.",
+    "should_trigger": false
+  },
+  {
+    "query": "Plan strict query validation for an internal read-only history endpoint that is not exposed to either app and has no processing/recovery impact.",
+    "should_trigger": false
+  },
+  {
+    "query": "Explain Playwright screenshot configuration for a training note. Do not execute browser tests or verify the demo.",
+    "should_trigger": false
+  },
+  {
+    "query": "Document the existing loopback URLs in a table without probing service health, launching containers or making application requests.",
+    "should_trigger": false
+  },
+  {
+    "query": "Locate docker-compose.test.yml and report its path only; do not run it, inspect processing state or claim acceptance.",
+    "should_trigger": false
+  }
+]

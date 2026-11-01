@@ -226,7 +226,57 @@ supports independent source review, not editing or running tests. Example tasks:
 "Use compose-journey to verify a stock failure and owner retry".
 These are usage examples, not implemented features. Customization discovery and
 tool alias enforcement depend on the Copilot client; prose is guidance, not
-mechanical enforcement. Evaluation, plugin packaging and automations are later stages.
+mechanical enforcement. Plugin packaging and automations are later stages.
+
+### Skill evaluation with the Agent Skills convention
+
+Each skill versions plain [Agent Skills outcome cases](https://agentskills.io/skill-creation/evaluating-skills)
+and [description trigger queries](https://agentskills.io/skill-creation/optimizing-descriptions)
+beside its unchanged instructions:
+`evals/evals.json` (three repo-grounded prompts and expected outputs) and
+`evals/trigger-queries.json` (ten positive and ten negative/near-miss queries).
+See [service-endpoint](.github/skills/service-endpoint/evals/),
+[integration-event](.github/skills/integration-event/evals/) and
+[compose-journey](.github/skills/compose-journey/evals/). These reviewed cases make
+customizations reusable, regression-tested factory assets without a custom runner,
+grader, dependency or AI CI workflow. Versioned cases alone are not executed evals.
+
+Use off-the-shelf tooling such as Anthropic's
+[skill-creator](https://github.com/anthropics/skills/tree/main/skills/skill-creator),
+or run the guide's fresh with-skill/without-skill sessions. Provide the same
+repository snapshot, prompt and instructions to both; preserve the
+`.github/skills/<name>/` hierarchy so relative resources resolve. Ensure the
+target skill is actually unavailable in the baseline, including personal/plugin
+copies, rather than merely omitting its name. Keep expected outputs/trigger labels
+out of the agent's task input; bundled eval files are public authoring data, not
+hidden holdouts. The initial outcome prompts request read-only plans
+or diagnosis of supplied observations, not changes to the running demo. Review
+actual outputs against expected behavior; use deterministic scripts for mechanical
+assertions when available and human review for reasoning, without treating a plan
+as proof of executed recovery.
+
+Alternatively import a skill's `evals.json` into the installed Skill Evaluator
+canvas. The cases omit optional `files`: stage a read-only disposable repository
+snapshot separately as runtime input; import alone does not supply source code.
+The local canvas resolves file references under its configured fixtures root,
+not the skill directory, and its existing Copilot adapter suppresses instructions
+and stages personal skills. Use it only after confirming equivalent repository
+context/resource staging and permissions; do not assume import proves parity.
+There is no dependency on that separately installed tool in this repository.
+
+For triggering, submit each `query` without naming the skill and observe its
+actual invocation from the client's logs/tool history. Repeat queries (three is a
+starting point), include the near misses and keep a fixed validation subset when
+tuning descriptions. Missing runtime evidence is unverified, not a successful
+negative; loading/discovery is not task success. Model calls are manual, metered
+and opt-in: review labels, runtime capabilities, permissions and spend first.
+Keep generated results in ignored sibling `<skill>-workspace/iteration-N/`
+directories, as the guide describes; never commit transcripts or credentials.
+Do not run outage/browser cases against the live demo without separate approval.
+Architecture-reviewer flaw/clean-diff and tool-enforcement evaluations remain a
+follow-up; no runtime restriction or measured skill improvement is claimed here.
+The earlier [research proposal](research/ai-skill-evaluation.md) records possible
+future infrastructure, not the implementation chosen for this simpler slice.
 
 ## Try the complete journey
 

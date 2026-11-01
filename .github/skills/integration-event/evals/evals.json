@@ -1,0 +1,20 @@
+{
+  "skill_name": "integration-event",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "From the boba repository root, inspect the current OrderCompleted v2 contract, Orders outbox producer and affected consumers. Plan a new completion wire version carrying per-line product-name snapshots while preserving supported v2 behavior. Explain the subscriber rollout and compatibility tests. Do not edit files, publish messages or run the application.",
+      "expected_output": "An owner-by-owner rollout plan leaving strict v2 unchanged and introducing a separate new wire schema/version. It distinguishes legacy v1 parseability from its unsupported completion effects, preserves self-contained completion data and independent Inventory/Finance/Customers effects, and identifies old/new/invalid/unsupported payload tests. It preserves atomic domain/outbox and effect/receipt commits and stable semantic operation IDs on retry, with no consumer lookup into Orders or invented compatibility defaults."
+    },
+    {
+      "id": 2,
+      "prompt": "Read tests/integration/events.test.ts and the relevant producer/consumer code from the repository root. Plan verification for duplicate completion delivery and a retained Inventory recipe failure followed by owner retry. Use the existing two-tea fixture to specify exact stock, ledger and customer deltas. Do not run RabbitMQ, change stock or retry the live demo.",
+      "expected_output": "An evidence plan using real RabbitMQ delivery and owner APIs in isolated fixtures, retaining the original operation ID and payload on redelivery/retry. For the existing two-tea fixture it specifies stock -100 units, exactly one simulated USD sale of 1100 minor units, customer count +1 and USD spend +1100 once. It distinguishes published outbox facts from consumer success, retains visible failure until repair, retries only the owning failed effect and states that the proposed checks were not executed."
+    },
+    {
+      "id": 3,
+      "prompt": "Someone proposes retrying a failed completion with the same operationId but corrected quantities and says ON CONFLICT DO NOTHING makes it safe. Inspect the boba contracts and messaging/effect code from the repository root. Assess the claim and plan explicit conflict behavior and tests without changing code or sending messages.",
+      "expected_output": "A code-backed assessment that semantic deduplication alone does not compare or authorize changed payloads under a reused operation ID. It preserves the original payload/identity for ordinary retries, separates intentional correction from redelivery, calls for explicit conflicting-ID/payload behavior and public-behavior tests, and maintains atomic effect/receipt commits. It reports actual current behavior and unresolved design decisions rather than claiming conflict detection already exists."
+    }
+  ]
+}

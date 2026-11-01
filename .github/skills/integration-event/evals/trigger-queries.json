@@ -1,0 +1,82 @@
+[
+  {
+    "query": "Plan a new completion payload version carrying product-name snapshots, while preserving strict older schemas and rolling out all subscribing services.",
+    "should_trigger": true
+  },
+  {
+    "query": "Inventory's completion consumer needs durable duplicate protection across restart. Trace its semantic operation ID and atomic effect/receipt transaction before changing it.",
+    "should_trigger": true
+  },
+  {
+    "query": "Fix the order relay so it marks outbox publication only after RabbitMQ confirmation, retaining stable event and operation IDs on retry.",
+    "should_trigger": true
+  },
+  {
+    "query": "Plan how Finance handles a parseable legacy v1 completion that lacks sale details. We need explicit failure rather than fetching Orders.",
+    "should_trigger": true
+  },
+  {
+    "query": "can we add an optional field to OrderCompleted v2 without breaking older consumers? read the strict contract and plan compatibility first.",
+    "should_trigger": true
+  },
+  {
+    "query": "Change the Customers completion effect to keep currency-separated spend totals exact across redelivery and owner retry.",
+    "should_trigger": true
+  },
+  {
+    "query": "Define what happens if a failed completion is retried with the same operationId but different quantities; don't assume ON CONFLICT compares payloads.",
+    "should_trigger": true
+  },
+  {
+    "query": "Plan adding a new subscriber's durable local receipt and completion effect without coordinating it from Orders.",
+    "should_trigger": true
+  },
+  {
+    "query": "Change malformed order-message handling so invalid payloads are durably retained before acknowledgement. Include recovery and duplicate tests.",
+    "should_trigger": true
+  },
+  {
+    "query": "Review a change that moves the stock write outside the effect receipt transaction, and explain the crash/retry consequences.",
+    "should_trigger": true
+  },
+  {
+    "query": "Rename an internal TypeScript variable called eventId in a standalone helper without changing any wire payload or retry behavior.",
+    "should_trigger": false
+  },
+  {
+    "query": "Explain the existing event envelope fields for a glossary entry. Do not evolve contracts, publication or consumer effects.",
+    "should_trigger": false
+  },
+  {
+    "query": "Add a browser click event for a static navigation control. This task has no RabbitMQ, order fact or completion effect changes.",
+    "should_trigger": false
+  },
+  {
+    "query": "Compare choreography and orchestration as concepts in a training paragraph, without reviewing or changing this repository.",
+    "should_trigger": false
+  },
+  {
+    "query": "Expose the existing Inventory history GET route through the staff gateway. No order fact, outbox or consumer behavior is changing.",
+    "should_trigger": false
+  },
+  {
+    "query": "Fix a typo in an event type's Markdown heading only; leave schema identifiers and all code unchanged.",
+    "should_trigger": false
+  },
+  {
+    "query": "Explain RabbitMQ publisher confirmation terminology, without tracing or changing the boba outbox or acknowledgement implementation.",
+    "should_trigger": false
+  },
+  {
+    "query": "Format an existing integration test import list. Do not change test assertions, event fixtures or consumer behavior.",
+    "should_trigger": false
+  },
+  {
+    "query": "Suggest a label for the staff dashboard's event-status heading. Preserve processing truth and all response/event semantics.",
+    "should_trigger": false
+  },
+  {
+    "query": "Add strict pagination validation to an internal Inventory history read endpoint. It neither publishes order facts nor applies downstream effects.",
+    "should_trigger": false
+  }
+]
