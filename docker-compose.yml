@@ -1,0 +1,165 @@
+name: boba-platform
+
+x-node-health: &node-health
+  test:
+    - CMD
+    - node
+    - -e
+    - "fetch('http://127.0.0.1:3000/health').then(r => { if (!r.ok) process.exit(1); }).catch(() => process.exit(1))"
+  interval: 5s
+  timeout: 3s
+  retries: 12
+  start_period: 10s
+
+x-backend: &backend
+  init: true
+  healthcheck: *node-health
+  depends_on:
+    postgres:
+      condition: service_healthy
+    rabbitmq:
+      condition: service_healthy
+
+x-backend-environment: &backend-environment
+  PORT: '3000'
+  RABBITMQ_URL: amqp://boba:boba_local@rabbitmq:5672
+
+x-gateway: &gateway
+  init: true
+  healthcheck: *node-health
+  depends_on:
+    orders:
+      condition: service_healthy
+    inventory:
+      condition: service_healthy
+    finance:
+      condition: service_healthy
+    customers:
+      condition: service_healthy
+
+x-app-health: &app-health
+  test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:8080/health']
+  interval: 5s
+  timeout: 3s
+  retries: 12
+  start_period: 10s
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: boba_admin
+      POSTGRES_PASSWORD: boba_admin_local
+      POSTGRES_DB: postgres
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/01-databases.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -h 127.0.0.1 -U boba_admin -d postgres']
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    hostname: rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: boba
+      RABBITMQ_DEFAULT_PASS: boba_local
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    ports:
+      - '127.0.0.1:15672:15672'
+    healthcheck:
+      test: ['CMD', 'rabbitmq-diagnostics', '-q', 'check_running']
+      interval: 5s
+      timeout: 5s
+      retries: 18
+      start_period: 20s
+
+  orders:
+    <<: *backend
+    build:
+      context: .
+      dockerfile: services/orders/Dockerfile
+    environment:
+      <<: *backend-environment
+      DATABASE_URL: postgres://orders:orders_local@postgres:5432/orders
+
+  inventory:
+    <<: *backend
+    build:
+      context: .
+      dockerfile: services/inventory/Dockerfile
+    environment:
+      <<: *backend-environment
+      DATABASE_URL: postgres://inventory:inventory_local@postgres:5432/inventory
+
+  finance:
+    <<: *backend
+    build:
+      context: .
+      dockerfile: services/finance/Dockerfile
+    environment:
+      <<: *backend-environment
+      DATABASE_URL: postgres://finance:finance_local@postgres:5432/finance
+
+  customers:
+    <<: *backend
+    build:
+      context: .
+      dockerfile: services/customers/Dockerfile
+    environment:
+      <<: *backend-environment
+      DATABASE_URL: postgres://customers:customers_local@postgres:5432/customers
+
+  storefront-gateway:
+    <<: *gateway
+    build:
+      context: .
+      dockerfile: gateways/storefront-gateway/Dockerfile
+    environment:
+      ORDERS_URL: http://orders:3000
+      CUSTOMERS_URL: http://customers:3000
+    ports:
+      - '127.0.0.1:3001:3000'
+
+  store-ops-gateway:
+    <<: *gateway
+    build:
+      context: .
+      dockerfile: gateways/store-ops-gateway/Dockerfile
+    environment:
+      ORDERS_URL: http://orders:3000
+      INVENTORY_URL: http://inventory:3000
+      FINANCE_URL: http://finance:3000
+      CUSTOMERS_URL: http://customers:3000
+    ports:
+      - '127.0.0.1:3002:3000'
+
+  storefront:
+    build:
+      context: .
+      dockerfile: apps/storefront/Dockerfile
+    healthcheck: *app-health
+    depends_on:
+      storefront-gateway:
+        condition: service_healthy
+    ports:
+      - '127.0.0.1:8080:8080'
+
+  store-ops:
+    build:
+      context: .
+      dockerfile: apps/store-ops/Dockerfile
+    healthcheck: *app-health
+    depends_on:
+      store-ops-gateway:
+        condition: service_healthy
+    ports:
+      - '127.0.0.1:8081:8080'
+
+volumes:
+  postgres-data:
+  rabbitmq-data:

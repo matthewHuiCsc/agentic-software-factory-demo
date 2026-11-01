@@ -1,0 +1,11 @@
+packages:
+  - apps/*
+  - services/*
+  - gateways/*
+  - packages/*
+
+injectWorkspacePackages: true
+syncInjectedDepsAfterScripts:
+  - build
+onlyBuiltDependencies:
+  - esbuild
