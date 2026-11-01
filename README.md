@@ -4,7 +4,8 @@ A fictional boba chain platform and future software-factory demonstration.
 **Stages 3 and 4 build the usable demo journey:** service-owned PostgreSQL models,
 RabbitMQ choreography, durable order outboxes and consumer effects, and customer
 and staff apps backed by separate routing/read-aggregation gateways.
-Real authentication, payments, CI, skills, custom agents, and Copilot instructions
+**Stage 5 adds GitHub Actions CI** using ordinary steps and the same Compose stack.
+Real authentication, payments, skills, custom agents, and Copilot instructions
 remain out of scope.
 Existing `research/` is preserved and excluded from formatting and Docker builds.
 
@@ -149,8 +150,60 @@ and gateway-error recovery through the real apps. They create fictional orders
 in the running app stack; they do not reset application data.
 `pnpm format` formats owned source and configuration,
 never `research/`. Docker builds install from the committed lockfile and deploy
-only production dependencies for each backend/gateway. Later CI will run this
-same Compose stack through ordinary GitHub Actions steps.
+only production dependencies for each backend/gateway.
+
+## Continuous integration (Stage 5)
+
+`.github/workflows/ci.yml` runs on pushes, pull requests (including forks), and
+manual dispatch. One Ubuntu 24.04 job installs Node.js 24 and pinned pnpm, validates
+the locked workspace, runs unit/API and isolated PostgreSQL/RabbitMQ integration
+tests, builds every component image, waits for all ten Compose services to be
+healthy, and runs the Chromium customer/staff and failure-recovery journeys.
+It uses no custom container action, deployment, real credentials, or registry push.
+
+The workflow has read-only repository permissions, SHA-pinned actions, no persisted
+checkout credentials, a 30-minute job timeout and bounded Compose builds. A newer
+run cancels a superseded run of the same workflow/ref. Dependencies and images are
+not cached across runs: this exercises clean installs/builds without restoring
+untrusted branch build outputs.
+
+Every run uploads seven-day reports: unit/API JUnit, integration runner output,
+browser HTML/JUnit and failure traces/screenshots, plus Compose status/logs.
+Failed tests fail the job (including integration commands piped through `tee`);
+diagnostics and cleanup use `always()`. Abrupt runner termination may prevent
+final steps; GitHub disposes of the hosted runner. Reports contain fictional data only.
+
+Local equivalents (after the development install above):
+
+```sh
+pnpm lint
+pnpm typecheck
+mkdir -p test-results
+pnpm test --reporter=default --reporter=junit --outputFile=test-results/unit.xml
+pnpm build
+docker compose config --quiet
+docker compose -f docker-compose.test.yml config --quiet
+
+# The test project has separate databases/broker and no host ports.
+docker compose -f docker-compose.test.yml run --build --rm backend-tests
+docker compose -f docker-compose.test.yml down --volumes --remove-orphans
+
+# Uses the normal demo stack; browser tests add fictional demo records.
+docker compose up --build --wait --wait-timeout 180
+pnpm exec playwright install chromium
+CI=true pnpm test:browser
+
+# Validate workflow expressions and step syntax with actionlint:
+docker run --rm -v "$PWD:/repo:ro" -w /repo rhysd/actionlint:1.7.7
+```
+
+On hosted Linux, CI installs Chromium with `--with-deps` to provide system
+libraries; macOS needs only the browser download. GitHub must enable Actions and
+have hosted-runner minutes and network access to npm, actions, browser downloads
+and Docker Hub. No remote has been configured locally, so a hosted run requires
+the user to publish the repository. Do not copy CI's final
+`docker compose down --volumes` into normal local cleanup unless you intend to
+delete demo data; use `docker compose down` to preserve it.
 
 ## Try the complete journey
 
