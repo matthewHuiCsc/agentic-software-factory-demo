@@ -3,6 +3,7 @@ import {
   transaction,
   isUniqueViolation,
   type Database,
+  type Transaction,
 } from '@boba/persistence';
 import {
   createHealthApp,
@@ -11,6 +12,13 @@ import {
   pagination,
   type HealthApp,
 } from '@boba/service-runtime';
+import {
+  createEffectConsumer,
+  RabbitMessageBus,
+  registerEffectRoutes,
+  type EffectRecord,
+} from '@boba/messaging';
+import type { OrderEvent } from '@boba/contracts';
 import { z } from 'zod';
 
 const columns = `id, store_id AS "storeId", name, unit, on_hand AS "onHand", updated_at AS "updatedAt"`;
@@ -23,9 +31,14 @@ type Stock = {
   updatedAt: Date;
 };
 
-export const createApp = (db: Database): HealthApp => {
+export const createApp = (
+  db: Database,
+  bus?: RabbitMessageBus,
+  readiness?: () => Promise<void>,
+): HealthApp => {
   const app = createHealthApp('inventory', async () => {
     await db.query('SELECT 1');
+    await readiness?.();
   });
   app.post('/stock', async (request, reply) => {
     const input = z
@@ -116,5 +129,70 @@ export const createApp = (db: Database): HealthApp => {
     );
     return { items: result.rows, limit: query.limit, offset: query.offset };
   });
+  let retryOrder: ((orderId: string) => Promise<EffectRecord[]>) | undefined;
+  if (bus) {
+    const consumer = createEffectConsumer(db, bus, async (event, client) => {
+      await applyOrderEvent(event, client);
+    });
+    retryOrder = consumer.retryOrder;
+    app.addHook('onClose', consumer.close);
+  }
+  registerEffectRoutes(app, db, retryOrder);
   return app;
 };
+
+async function applyOrderEvent(
+  event: OrderEvent,
+  client: Transaction,
+): Promise<void> {
+  if (event.type !== 'OrderCompleted') return;
+  if (event.version !== 2)
+    throw new Error('OrderCompleted v1 does not include recipe quantities');
+
+  const requiredByStock = new Map<string, number>();
+  for (const item of event.data.items) {
+    const recipe = await client.query<{
+      stockId: string;
+      quantityPerUnit: number;
+    }>(
+      `SELECT recipe.stock_id AS "stockId",
+       recipe.quantity_per_unit AS "quantityPerUnit"
+       FROM product_recipes recipe
+       JOIN stock ON stock.id = recipe.stock_id
+       WHERE recipe.product_id = $1 AND stock.store_id = $2`,
+      [item.productId, event.data.storeId],
+    );
+    if (recipe.rows.length === 0)
+      throw new Error(`No recipe for product ${item.productId} at this store`);
+    for (const ingredient of recipe.rows) {
+      const amount =
+        item.quantity * ingredient.quantityPerUnit +
+        (requiredByStock.get(ingredient.stockId) ?? 0);
+      if (!Number.isSafeInteger(amount))
+        throw new Error('Recipe quantity exceeds safe inventory limits');
+      requiredByStock.set(ingredient.stockId, amount);
+    }
+  }
+
+  for (const [stockId, amount] of requiredByStock) {
+    const updated = await client.query<{ id: string }>(
+      `UPDATE stock SET on_hand = on_hand - $2, updated_at = now()
+       WHERE id = $1 AND on_hand >= $2 RETURNING id`,
+      [stockId, amount],
+    );
+    if (!updated.rows[0])
+      throw new Error(`Insufficient stock for ingredient ${stockId}`);
+    await client.query(
+      `INSERT INTO stock_adjustments
+       (id, stock_id, delta, reason, operation_id)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [
+        randomUUID(),
+        stockId,
+        -amount,
+        `Order ${event.data.orderId} completed`,
+        event.operationId,
+      ],
+    );
+  }
+}

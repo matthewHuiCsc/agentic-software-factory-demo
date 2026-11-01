@@ -12,6 +12,7 @@
     "@boba/persistence": "workspace:*",
     "zod": "^4.2.1",
     "@boba/contracts": "workspace:*",
-    "@boba/service-runtime": "workspace:*"
+    "@boba/service-runtime": "workspace:*",
+    "@boba/messaging": "workspace:*"
   }
 }

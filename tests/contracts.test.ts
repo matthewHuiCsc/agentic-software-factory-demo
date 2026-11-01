@@ -39,6 +39,22 @@ describe('version 1 order facts', () => {
     expect(orderEventSchema.parse(event)).toEqual(event);
   });
 
+  it('accepts version 2 completion facts with price and customer snapshots', () => {
+    const completed = {
+      ...base,
+      version: 2,
+      type: 'OrderCompleted',
+      data: {
+        ...identity,
+        customerId: id,
+        items: [{ productId: id, quantity: 2, unitPriceMinor: 550 }],
+        totalMinor: 1100,
+        currency: 'USD',
+      },
+    };
+    expect(orderEventSchema.parse(completed)).toEqual(completed);
+  });
+
   it.each([
     { ...placed, version: 2 },
     { ...placed, source: 'inventory' },

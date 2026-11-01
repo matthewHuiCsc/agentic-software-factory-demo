@@ -121,6 +121,8 @@ services:
       dockerfile: gateways/storefront-gateway/Dockerfile
     environment:
       ORDERS_URL: http://orders:3000
+      INVENTORY_URL: http://inventory:3000
+      FINANCE_URL: http://finance:3000
       CUSTOMERS_URL: http://customers:3000
     ports:
       - '127.0.0.1:3001:3000'

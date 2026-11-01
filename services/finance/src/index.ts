@@ -1,15 +1,22 @@
 import { start } from '@boba/service-runtime';
 import { openServiceDatabase } from '@boba/persistence';
+import { RabbitMessageBus } from '@boba/messaging';
 import { createApp } from './app.js';
 
 const db = await openServiceDatabase(
   new URL('../migrations/', import.meta.url),
 );
-const app = createApp(db);
+const rabbitUrl = process.env.RABBITMQ_URL;
+if (!rabbitUrl) throw new Error('RABBITMQ_URL is required');
+const bus = new RabbitMessageBus(rabbitUrl, 'boba.finance');
+const app = createApp(db, bus, async () => {
+  if (!bus.isConnected) throw new Error('RabbitMQ is unavailable');
+});
 db.on('error', (error) =>
   app.log.error({ err: error }, 'Idle database connection failed'),
 );
 app.addHook('onClose', async () => {
+  await bus.close();
   await db.end();
 });
 await start(app);

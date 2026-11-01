@@ -1,6 +1,17 @@
 name: boba-platform-tests
 
 services:
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: boba
+      RABBITMQ_DEFAULT_PASS: boba_local
+    healthcheck:
+      test: ['CMD', 'rabbitmq-diagnostics', '-q', 'check_running']
+      interval: 3s
+      timeout: 5s
+      retries: 30
+
   postgres:
     image: postgres:17-alpine
     environment:
@@ -22,10 +33,13 @@ services:
       context: .
       dockerfile: infra/tests/Dockerfile
     environment:
+      RABBITMQ_URL: amqp://boba:boba_local@rabbitmq:5672
       ORDERS_DATABASE_URL: postgres://orders:orders_local@postgres:5432/orders
       INVENTORY_DATABASE_URL: postgres://inventory:inventory_local@postgres:5432/inventory
       FINANCE_DATABASE_URL: postgres://finance:finance_local@postgres:5432/finance
       CUSTOMERS_DATABASE_URL: postgres://customers:customers_local@postgres:5432/customers
     depends_on:
+      rabbitmq:
+        condition: service_healthy
       postgres:
         condition: service_healthy

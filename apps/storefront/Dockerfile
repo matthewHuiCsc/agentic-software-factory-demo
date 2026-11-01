@@ -2,7 +2,7 @@ FROM node:24-alpine AS build
 WORKDIR /workspace
 RUN npm install --global pnpm@10.28.2
 COPY . .
-RUN pnpm install --frozen-lockfile && pnpm --filter @boba/storefront build
+RUN pnpm install --frozen-lockfile && pnpm --filter @boba/storefront... build
 
 FROM nginxinc/nginx-unprivileged:stable-alpine AS runtime
 COPY --from=build --chown=101:101 /workspace/apps/storefront/dist /usr/share/nginx/html

@@ -1,12 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { createHealthApp } from '../packages/service-runtime/src/index.js';
-import { createApp as storefront } from '../gateways/storefront-gateway/src/app.js';
-import { createApp as storeOps } from '../gateways/store-ops-gateway/src/app.js';
 
 describe.each([
   ['health-plumbing', () => createHealthApp('health-plumbing')],
-  ['storefront-gateway', storefront],
-  ['store-ops-gateway', storeOps],
+  ['storefront-gateway', () => createHealthApp('storefront-gateway')],
+  ['store-ops-gateway', () => createHealthApp('store-ops-gateway')],
 ] as const)('%s skeleton', (component, createApp) => {
   it('exposes health without domain routes', async () => {
     const app = createApp();

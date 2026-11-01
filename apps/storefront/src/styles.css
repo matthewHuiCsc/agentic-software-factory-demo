@@ -1,21 +1,206 @@
-:root {
-  font-family: system-ui, sans-serif;
-  color: #24352c;
-  background: #faf8f2;
-  line-height: 1.6;
-}
+@import '@boba/web-ui/styles.css';
 
-body {
-  margin: 0;
+.storefront {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 370px;
+  gap: 4rem;
+  align-items: start;
 }
-
-main {
-  max-width: 65ch;
-  margin: 12vh auto;
-  padding: 0 1.5rem;
+.welcome {
+  padding: 1rem 0 2.5rem;
 }
-
-h1 {
-  line-height: 1.2;
-  font-size: clamp(2rem, 6vw, 3rem);
+.welcome h1 {
+  margin-bottom: 1.2rem;
+}
+.welcome > p {
+  color: var(--muted);
+  font-size: 1.03rem;
+}
+.shop-details {
+  margin-top: 1.75rem;
+  display: flex;
+  gap: 1.25rem;
+  font-size: 0.8rem;
+  color: var(--green);
+}
+.shop-details span + span {
+  border-left: 1px solid var(--line);
+  padding-left: 1.25rem;
+}
+.menu {
+  border-top: 1px solid var(--line);
+  padding-top: 1.75rem;
+}
+.menu-drink {
+  display: grid;
+  grid-template-columns: 175px 1fr;
+  gap: 1.5rem;
+  padding: 1.5rem 0;
+  border-bottom: 1px solid var(--line);
+  align-items: center;
+}
+.drink-stage {
+  background: #e3eddc;
+  border-radius: 60% 60% 10px 10px;
+  display: grid;
+  place-items: center;
+  min-height: 210px;
+}
+.drink-stage.brown {
+  background: #eedfcd;
+}
+.drink-copy h3 {
+  font-size: 1.35rem;
+  margin-bottom: 0.5rem;
+}
+.drink-copy p {
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+.price {
+  display: block;
+  margin: 0.75rem 0;
+}
+.drink-control .button {
+  font-size: 0.8rem;
+  padding: 0.55rem 0.85rem;
+}
+.quantity {
+  display: inline-flex;
+  align-items: center;
+  gap: 1rem;
+  border: 1px solid #879e90;
+  border-radius: 6px;
+}
+.quantity button {
+  background: transparent;
+  border: 0;
+  font-size: 1.25rem;
+  color: var(--ink);
+  width: 44px;
+  height: 44px;
+}
+.quantity button:hover {
+  background: #e1eadc;
+}
+.quantity output {
+  min-width: 1rem;
+  text-align: center;
+  font-weight: 650;
+}
+.order-slip {
+  background: white;
+  padding: 1.8rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 8px 22px #183b3108;
+  position: sticky;
+  top: 1.5rem;
+}
+.order-slip h2 {
+  font-size: 1.4rem;
+}
+.cart-empty {
+  text-align: center;
+  padding: 2.5rem 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.cart-empty > span {
+  display: block;
+  color: #729479;
+  font-size: 2rem;
+  margin-bottom: 0.75rem;
+}
+.receipt-items {
+  list-style: none;
+  padding: 0;
+  margin: 1.5rem 0;
+  font-size: 0.85rem;
+}
+.receipt-items li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.5rem 0;
+}
+.receipt-items strong {
+  white-space: nowrap;
+}
+.receipt-total {
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px dashed var(--line);
+  padding: 1.1rem 0;
+}
+.receipt-total strong {
+  font-size: 1.35rem;
+}
+.place-order,
+.new-order {
+  width: 100%;
+}
+.checkout-note {
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-top: 0.85rem;
+}
+.order-confirmation {
+  padding-top: 1.5rem;
+}
+.order-confirmation h3 {
+  margin-top: 0.9rem;
+  margin-bottom: 0.5rem;
+}
+.ticket-number {
+  font-family: ui-monospace, monospace;
+  margin-right: 0.75rem;
+}
+.new-order {
+  margin-top: 1.5rem;
+}
+@media (max-width: 1000px) {
+  .storefront {
+    gap: 2rem;
+    grid-template-columns: minmax(0, 1fr) 330px;
+  }
+  .menu-drink {
+    grid-template-columns: 125px 1fr;
+  }
+  .drink-art {
+    width: 125px;
+  }
+}
+@media (max-width: 780px) {
+  .storefront {
+    grid-template-columns: 1fr;
+  }
+  .order-slip {
+    position: static;
+  }
+  .menu-drink {
+    grid-template-columns: 140px 1fr;
+    gap: 1rem;
+  }
+  .welcome {
+    padding-top: 0.5rem;
+  }
+  .menu .section-heading > span {
+    display: none;
+  }
+  .desktop-break {
+    display: none;
+  }
+}
+@media (max-width: 400px) {
+  .menu-drink {
+    grid-template-columns: 110px 1fr;
+  }
+  .drink-art {
+    width: 110px;
+  }
+  .drink-copy h3 {
+    font-size: 1.15rem;
+  }
 }

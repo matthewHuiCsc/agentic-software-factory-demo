@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { type Database } from '@boba/persistence';
+import { type Database, type Transaction } from '@boba/persistence';
 import {
   createHealthApp,
   HttpError,
@@ -7,6 +7,13 @@ import {
   pagination,
   type HealthApp,
 } from '@boba/service-runtime';
+import {
+  createEffectConsumer,
+  RabbitMessageBus,
+  registerEffectRoutes,
+  type EffectRecord,
+} from '@boba/messaging';
+import type { OrderEvent } from '@boba/contracts';
 import { z } from 'zod';
 
 const columns = `id, store_id AS "storeId", kind, amount_minor AS "amountMinor", currency,
@@ -21,9 +28,14 @@ type Entry = {
   createdAt: Date;
 };
 
-export const createApp = (db: Database): HealthApp => {
+export const createApp = (
+  db: Database,
+  bus?: RabbitMessageBus,
+  readiness?: () => Promise<void>,
+): HealthApp => {
   const app = createHealthApp('finance', async () => {
     await db.query('SELECT 1');
+    await readiness?.();
   });
   app.post('/entries', async (request, reply) => {
     const input = z
@@ -99,5 +111,37 @@ export const createApp = (db: Database): HealthApp => {
     );
     return { items: result.rows };
   });
+  let retryOrder: ((orderId: string) => Promise<EffectRecord[]>) | undefined;
+  if (bus) {
+    const consumer = createEffectConsumer(db, bus, async (event, client) => {
+      await applyOrderEvent(event, client);
+    });
+    retryOrder = consumer.retryOrder;
+    app.addHook('onClose', consumer.close);
+  }
+  registerEffectRoutes(app, db, retryOrder);
   return app;
 };
+
+async function applyOrderEvent(
+  event: OrderEvent,
+  client: Transaction,
+): Promise<void> {
+  if (event.type !== 'OrderCompleted') return;
+  if (event.version !== 2)
+    throw new Error('OrderCompleted v1 does not include sale details');
+  if (event.data.totalMinor === 0) return;
+  await client.query(
+    `INSERT INTO ledger_entries
+     (id, store_id, kind, amount_minor, currency, memo, operation_id)
+     VALUES ($1, $2, 'income', $3, $4, $5, $6)`,
+    [
+      randomUUID(),
+      event.data.storeId,
+      event.data.totalMinor,
+      event.data.currency,
+      `Completed order ${event.data.orderId}`,
+      event.operationId,
+    ],
+  );
+}

@@ -1,12 +1,11 @@
 # Boba platform
 
 A fictional boba chain platform and future software-factory demonstration.
-**Stage 2 adds backend foundations:** four service-owned PostgreSQL models,
-migrations, fictional seed data, validated HTTP APIs, and isolated database-backed
-tests. React apps and gateways remain bootstrap placeholders. Event
-publishers/consumers, outboxes, cross-service workflows, gateway routing,
-authentication, payments, CI, skills, custom agents, and Copilot instructions
-are not implemented yet.
+**Stages 3 and 4 build the usable demo journey:** service-owned PostgreSQL models,
+RabbitMQ choreography, durable order outboxes and consumer effects, and customer
+and staff apps backed by separate routing/read-aggregation gateways.
+Real authentication, payments, CI, skills, custom agents, and Copilot instructions
+remain out of scope.
 Existing `research/` is preserved and excluded from formatting and Docker builds.
 
 ## Architecture and boundaries
@@ -14,12 +13,15 @@ Existing `research/` is preserved and excluded from formatting and Docker builds
 This is a TypeScript pnpm monorepo. Four Node.js/Fastify backends own their domains:
 `services/orders`, `services/inventory`, `services/finance`, and
 `services/customers`. Two React apps live in `apps/storefront` (customers) and
-`apps/store-ops` (staff). Their Fastify gateways in `gateways/` will perform routing
+`apps/store-ops` (staff). Their Fastify gateways in `gateways/` perform routing
 and read aggregation only, never business logic. `packages/service-runtime`
 shares only HTTP startup, shutdown, and health plumbing; `packages/contracts`
 owns integration schemas and derived TypeScript types. `packages/persistence`
 shares PostgreSQL connection/transaction/migration mechanics, not domain queries.
 Every SQL model and query lives in its owning service.
+`packages/gateway-runtime` shares only bounded HTTP forwarding and read aggregation.
+`packages/web-ui` shares accessible UI primitives, API response validation, and
+visual tokens; it does not apply backend domain effects.
 
 Each of the eight components has its own multi-stage, non-root Docker image.
 One local PostgreSQL container provides four separate databases, each owned by a
@@ -28,24 +30,29 @@ receives only its own credentials. No service may read another service's tables.
 The admin login is exclusively for local database administration. RabbitMQ has
 its own container. Neither database nor AMQP ports are published to the host.
 
-The planned interaction is **event-driven choreography**, with no coordinator:
-Orders confirms an order on placement and will publish only facts about its orders:
+The interaction is **event-driven choreography**, with no coordinator:
+Orders confirms an order on placement and publishes only facts about its orders:
 `OrderPlaced`, `OrderCompleted`, `OrderRejected`, and `OrderCancelled`.
 Orders must never call Inventory or Finance. Inventory, Finance, and Customers
-will subscribe and independently apply their own effects. Staff can reject an order
+subscribe and independently apply their own effects. Staff can reject an order
 (for example, insufficient stock), or prepare and complete it. There is no stock
 reservation, real payment processing, or authentication.
 
-Every publishing service must eventually persist its domain mutation and
-transactional outbox record in the same database transaction. Consumers must
-eventually record a semantic operation ID and their side effect atomically, with
-a unique key scoped to the consumer/effect, so retries cannot duplicate effects.
-These are requirements for later stages, not behavior hidden in the skeleton.
+Orders persists its domain mutation and transactional outbox record in the same
+database transaction. Consumers record a semantic operation ID and their side
+effect atomically, scoped to the service/effect, so retries cannot duplicate effects.
+The staff app shows actual pending, applied, failed, or unavailable results
+read from each owner; a completed order is never evidence that all consumers succeeded.
 
 ### Event contract versioning
 
 `@boba/contracts` exports Zod schemas and inferred types for the four facts.
-The envelope has `version: 1`, `source: "orders"`, `eventId`, `operationId`, and
+Placement, rejection, cancellation, and the legacy completion schema use
+`version: 1`. New completion facts use **version 2**, with the order's product
+quantities, price snapshots, total, currency, and optional customer included.
+Consumers never fetch these details from Orders. A legacy v1 completion is
+parseable but fails visibly in consumers because it cannot support these effects.
+The envelope has `source: "orders"`, `eventId`, `operationId`, and
 an ISO timestamp `occurredAt`. Payloads identify the order and store; placement
 includes product quantities, an integer total in currency minor units, and an
 optional customer. These are fictional starting payloads, not a complete menu model.
@@ -78,11 +85,14 @@ docker compose ps
 
 All eight components expose `/health`. Backends are internal on port 3000;
 apps serve built React assets with unprivileged Nginx on port 8080.
-Backend health checks query their own database and return 503 if unavailable.
-Gateways/apps still expose HTTP liveness only; no broker clients exist yet. Compose waits for
+Backend health checks query their own database and check broker connectivity,
+returning 503 if either is unavailable. Existing order writes can still commit
+to their outbox during a later broker outage; publication waits for recovery.
+Gateways/apps expose HTTP liveness. Compose waits for
 PostgreSQL/RabbitMQ before starting backends, for backends before gateways, and
 for each gateway before its app. Startup dependencies do not supervise later outages.
-Gateway URLs in Compose are future wiring, not implemented routing.
+Nginx proxies same-origin `/api/` to each app's gateway; browsers do not call
+backends directly. Gateways have no database or broker credentials.
 
 All committed passwords are **public disposable local-development fixtures**.
 RabbitMQ management uses `boba` / `boba_local`; backend database passwords are
@@ -118,20 +128,49 @@ pnpm build
 # Run HTTP integration tests against four isolated, ephemeral databases:
 docker compose -f docker-compose.test.yml run --build --rm backend-tests
 docker compose -f docker-compose.test.yml down
+
+# With the normal application Compose stack running:
+pnpm exec playwright install chromium
+pnpm test:browser
 ```
 
 Typecheck and tests build shared packages first, so they work on a clean checkout.
-Vitest unit tests cover HTTP plumbing, both React placeholders, and
+Vitest tests cover HTTP plumbing, gateway routing/read aggregation and failures,
+both app shells, and
 valid/invalid event payloads. Integration tests exercise the four backend APIs
 through Fastify injection with real PostgreSQL, including concurrency,
 persistence across app recreation, migrations, validation and readiness failure.
-The separate test Compose project uses tmpfs storage and no host ports; it does
+The separate test Compose project uses tmpfs database storage, its own broker,
+and no host ports; it does
 not write to the running application databases. `pnpm test:integration` is the
-container test runner entry point (requires the four test database URLs).
+container test runner entry point (requires the four test database URLs and
+`RABBITMQ_URL`). Browser tests run desktop pickup/completion, mobile rejection,
+and gateway-error recovery through the real apps. They create fictional orders
+in the running app stack; they do not reset application data.
 `pnpm format` formats owned source and configuration,
 never `research/`. Docker builds install from the committed lockfile and deploy
 only production dependencies for each backend/gateway. Later CI will run this
 same Compose stack through ordinary GitHub Actions steps.
+
+## Try the complete journey
+
+1. Open http://localhost:8080. Add a tea and place a pickup order as the seeded
+   Demo Customer. No payment is requested.
+2. Open http://localhost:8081. Select the new order by its short receipt ID,
+   choose **Start preparing**, then **Complete order**.
+3. Inspect **Behind your cup** in either app. Order facts and each consumer have
+   independent states. Wait for inventory, simulated sale, and customer activity
+   to become applied; pending or failed is not success.
+4. Staff can inspect **Inventory**, **Sales ledger**, and **Customers**. Adjust
+   stock with a reason when needed; retry a failed effect after fixing its cause.
+
+The demo uses one Downtown store and two milk teas. Browser order tracking is
+stored locally as a receipt ID and restored on reload; it is not authentication.
+Both interfaces refresh activity every three seconds and expose loading, empty,
+validation, unavailable-service, and retry states. Latest-order/ledger views are
+bounded to 100 records, not an unlimited reporting system. Staff actions are
+available only through the staff gateway's routes, but this is not an authorization
+boundary: the whole loopback-only stack is deliberately unauthenticated.
 
 ## Backend API slice
 
@@ -150,7 +189,8 @@ optional values. There is no authentication: use fictional customer data only.
 | Finance   | `POST /entries`, `GET /entries`, `GET /entries/:id`, `GET /summary?storeId=UUID`                           | Immutable manual income/expense entries; totals grouped by currency |
 | Customers | `POST /customers`, `GET /customers`, `GET /customers/:id`, `PATCH /customers/:id`                          | Profiles with normalized, unique emails and partial updates         |
 
-**Orders:** placement accepts `storeId`, optional `customerId`, `currency` (three
+**Orders:** `GET /menu` reads two seeded house drinks from Orders' own menu table.
+Placement accepts `storeId`, optional `customerId`, `currency` (three
 uppercase letters), and 1..50 `items`. Each item is a caller-provided snapshot:
 `productId`, `name`, `quantity` (1..100), `unitPriceMinor` (0..100000). The service
 computes `totalMinor`; clients cannot supply status or totals. There is no product
@@ -160,6 +200,8 @@ for a real shop. Orders start `confirmed`; transitions are `confirmed -> prepari
 Terminal orders cannot change state. The status PATCH accepts `{ status }`, plus
 a required nonempty `reason` for rejection/cancellation. Updates condition on
 the previous state atomically. Lists optionally filter by `storeId` and `status`.
+Placement and terminal changes each persist an outbox fact in that same transaction.
+Preparation is order-local state, not a published integration fact.
 
 **Inventory:** create accepts `{ storeId, name, unit }`, where `unit` is `g`, `ml`,
 or `pieces`, and initial `onHand` is zero. Ingredient names are case-insensitively
@@ -167,11 +209,15 @@ unique per store. Adjustment accepts `{ delta, reason }`, where delta is a
 nonzero integer in -1000000..1000000. Stock must remain within 0..1000000.
 The count and history record commit in one transaction; competing decrements
 cannot make stock negative. Lists optionally filter by `storeId`.
-There are no reservations, recipes, or automatic deductions.
+Both seeded drinks use a minimal service-owned recipe: 50g tapioca pearls per cup.
+Completed-order events deduct recipe quantities atomically and add stock history.
+Missing recipes or insufficient ingredients persist failed effects; they do
+not undo the completed order or silently fabricate stock. There are no reservations.
 
 **Finance:** create accepts `{ storeId, kind, amountMinor, currency, memo }`,
 where `kind` is `income` or `expense`, and amount is an integer in 1..100000000.
-There is no update/delete endpoint and no link to payments or Orders.
+There is no update/delete endpoint or payment processing.
+Version 2 completed-order facts add a simulated income entry once per operation.
 Lists optionally filter by `storeId` and `currency`; summaries require `storeId`
 and return `{ items }`. Each currency has `incomeMinor`, `expenseMinor`, and
 `balanceMinor` as **decimal strings** to preserve aggregate integer precision.
@@ -179,8 +225,11 @@ An empty ledger returns an empty list, not invented zero entries.
 
 **Customers:** create accepts `{ name, email, phone? }`; PATCH accepts any nonempty
 subset. Emails are trimmed and lowercased, names are trimmed, and `phone: null`
-clears a phone while omitted fields are preserved. No loyalty or order-history
-effects exist yet. Lists optionally filter by exact normalized `email`.
+clears a phone while omitted fields are preserved. Completed-order effects update
+a count and currency-separated spend for the linked customer. Guest completions
+are explicitly skipped; a nonexistent referenced customer produces a failed effect.
+Profiles expose `completedOrderCount` and `totalSpend` with decimal-string totals.
+There is no loyalty program. Lists optionally filter by exact normalized `email`.
 
 For an internal read without exposing backend ports:
 
@@ -198,9 +247,41 @@ Applied migration checksums are recorded in `schema_migrations`; changing an
 applied file fails startup explicitly. Add a new migration instead.
 Startup failures prevent listening; shutdown drains HTTP and closes its pool.
 
-The first migration inserts one fictional record per service exactly once.
+The first migration inserts one fictional record per service exactly once;
+later migrations add the menu, recipes, outbox, effect receipts, and customer totals.
 The demo store ID is `00000000-0000-4000-8000-000000000001`. Seed record IDs end in
 `101` (confirmed tea order), `201` (10000g tapioca pearls), `301` (manual USD supplies
 expense), and `401` (customer `demo@example.test`). These records are independent;
 seeding does not enact an order workflow. Normal restarts preserve data and do
 not reseed it. Only the documented volume reset deletes application data.
+
+### Event status and recovery APIs
+
+Orders exposes `GET /orders/:id/events` with outbox publication status, attempts,
+and the last publication error. Inventory, Finance, and Customers each expose
+`GET /effects/:orderId`; effect records include the event type, semantic operation
+ID, `pending`/`processed`/`failed`/`skipped` status, attempt count and error.
+`POST /effects/:orderId/retry` retries that owner's failed effects, never a global
+workflow. A retry can still fail if the recipe, stock, or customer has not been fixed.
+
+The gateways route the public app API under `/api/`; staff additionally exposes
+stock adjustments, order status changes, and per-owner retries. Both offer
+`GET /api/orders/:id/journey` for read aggregation of the order, outbox and
+each owner's effects. Staff offers `GET /api/dashboard?storeId=UUID`.
+Every aggregation section explicitly reports `available` with its owner's data
+or `unavailable` with an error. Gateways neither apply effects nor decide that a
+journey succeeded; consumer processing is identified specifically by completion
+event type, never by a processed placement receipt.
+
+RabbitMQ queues and messages are durable; publisher confirms precede marking an
+outbox record published. Redelivery is expected. Each consumer persists a pending
+receipt before processing, and atomically commits its side effect and processed
+marker under a unique semantic operation ID. Duplicate delivery cannot deduct
+stock, add a sale, or increment customer totals twice. Pending receipts recover
+after worker restarts; failed effects retain their error for repair and explicit
+retry. Broker outages leave facts in the outbox and reconnect automatically. Invalid
+JSON or unsupported event schemas are logged and persistently quarantined in
+`boba.inventory.invalid`, `boba.finance.invalid`, and `boba.customers.invalid`,
+visible in RabbitMQ management; they are not silently discarded. Repairing and
+replaying quarantined messages is a manual operator task, not an automatic schema
+migration. Connection, setup, and publisher-confirm waits have five-second bounds.
