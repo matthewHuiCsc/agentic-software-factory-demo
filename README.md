@@ -238,8 +238,8 @@ beside its unchanged instructions:
 See [service-endpoint](.github/skills/service-endpoint/evals/),
 [integration-event](.github/skills/integration-event/evals/) and
 [compose-journey](.github/skills/compose-journey/evals/). These reviewed cases make
-customizations reusable, regression-tested factory assets without a custom runner,
-grader, dependency or AI CI workflow. Versioned cases alone are not executed evals.
+customizations reviewed factory assets. They describe evaluation data/process,
+not a standalone runner; versioned cases alone are not executed evals.
 
 Use off-the-shelf tooling such as Anthropic's
 [skill-creator](https://github.com/anthropics/skills/tree/main/skills/skill-creator),
@@ -255,14 +255,17 @@ actual outputs against expected behavior; use deterministic scripts for mechanic
 assertions when available and human review for reasoning, without treating a plan
 as proof of executed recovery.
 
-Alternatively import a skill's `evals.json` into the installed Skill Evaluator
-canvas. The cases omit optional `files`: stage a read-only disposable repository
-snapshot separately as runtime input; import alone does not supply source code.
-The local canvas resolves file references under its configured fixtures root,
-not the skill directory, and its existing Copilot adapter suppresses instructions
-and stages personal skills. Use it only after confirming equivalent repository
-context/resource staging and permissions; do not assume import proves parity.
-There is no dependency on that separately installed tool in this repository.
+For an executable first slice, the [Harbor pilot](evals/harbor/README.md) runs
+one narrow `service-endpoint` implementation task in isolated task containers.
+Harbor owns trial execution, lifecycle and result collection; this repository
+provides task fixtures and independent acceptance tests, not an evaluation
+platform. Run `bash scripts/eval-skills.sh check` for no-model good/bad controls.
+After reviewing the permission and spend boundary, use
+`bash scripts/eval-skills.sh run <explicit-copilot-model>` for one fresh
+candidate/baseline pair. The manual **Skill evaluation pilot** Actions workflow
+uses the same command and pins on the default branch. It requires an explicitly
+chosen model and a separately provisioned Copilot-authorized secret; ordinary
+PR CI never runs it. There is no schedule or personal canvas dependency.
 
 For triggering, submit each `query` without naming the skill and observe its
 actual invocation from the client's logs/tool history. Repeat queries (three is a

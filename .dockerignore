@@ -9,3 +9,4 @@ research
 .env
 .env.*
 *.log
+harbor-workspace

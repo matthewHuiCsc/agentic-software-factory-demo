@@ -1,0 +1,58 @@
+name: Skill evaluation pilot
+
+on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: Native Copilot model catalog name (explicit, no provider prefix)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: skill-evaluation-pilot
+  cancel-in-progress: false
+
+jobs:
+  service-endpoint:
+    # Secret-bearing execution is allowed only from reviewed/default-branch code.
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out reviewed source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+
+      - name: Set up pinned Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: '3.12.15'
+
+      - name: Install pinned Harbor launcher
+        run: python -m pip install uv==0.13.5
+
+      - name: Validate acceptance controls without a model
+        run: bash scripts/eval-skills.sh check
+
+      - name: Run one candidate/baseline pair (metered, advisory)
+        env:
+          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+          EVAL_MODEL: ${{ inputs.model }}
+        run: bash scripts/eval-skills.sh run "$EVAL_MODEL"
+
+      - name: Upload Harbor results and failure diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: service-endpoint-harbor-${{ github.run_id }}-${{ github.run_attempt }}
+          path: harbor-workspace/
+          if-no-files-found: warn
+          retention-days: 7

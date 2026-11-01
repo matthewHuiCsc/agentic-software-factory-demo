@@ -4,3 +4,4 @@ node_modules/
 dist/
 coverage/
 .impeccable/hook.cache.json
+harbor-workspace/

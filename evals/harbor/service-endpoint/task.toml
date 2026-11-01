@@ -1,0 +1,22 @@
+schema_version = "1.4"
+artifacts = ["/workspace/packages/gateway-runtime/src/index.ts"]
+
+[metadata]
+category = "software-engineering"
+tags = ["agent-skills", "service-endpoint", "gateway"]
+
+[agent]
+timeout_sec = 300
+user = "agent"
+
+[verifier]
+timeout_sec = 180
+environment_mode = "separate"
+user = "root"
+
+[environment]
+build_timeout_sec = 600
+cpus = 2
+memory_mb = 4096
+storage_mb = 10240
+workdir = "/workspace"
