@@ -5,8 +5,9 @@ A fictional boba chain platform and future software-factory demonstration.
 RabbitMQ choreography, durable order outboxes and consumer effects, and customer
 and staff apps backed by separate routing/read-aggregation gateways.
 **Stage 5 adds GitHub Actions CI** using ordinary steps and the same Compose stack.
-Real authentication, payments, skills, custom agents, and Copilot instructions
-remain out of scope.
+**Stage 6 adds repository-local software-factory guidance:** focused skills,
+a read-only architecture reviewer, and concise always-on Copilot instructions.
+Real authentication and payments remain out of scope.
 Existing `research/` is preserved and excluded from formatting and Docker builds.
 
 ## Architecture and boundaries
@@ -204,6 +205,28 @@ and Docker Hub. No remote has been configured locally, so a hosted run requires
 the user to publish the repository. Do not copy CI's final
 `docker compose down --volumes` into normal local cleanup unless you intend to
 delete demo data; use `docker compose down` to preserve it.
+
+## Software-factory customizations (Stage 6)
+
+[Repository instructions](.github/copilot-instructions.md) carry the always-on
+architecture guardrails. The on-demand skills provide checkable workflows:
+[integration-event](.github/skills/integration-event/SKILL.md) for wire evolution
+and durable effects, [service-endpoint](.github/skills/service-endpoint/SKILL.md)
+for an API vertical slice, and [compose-journey](.github/skills/compose-journey/SKILL.md)
+for full-stack acceptance and recovery evidence. Their descriptions enable
+task-based discovery; explicitly request a skill by name when desired. They
+retain normal tool permission prompts and reuse the commands above.
+
+Select [architecture-reviewer](.github/agents/architecture-reviewer.agent.md) in a
+client supporting repository custom agents, or ask your agent to delegate to it
+with a change list/diff and acceptance criteria. Its `read`/`search` tool allowlist
+supports independent source review, not editing or running tests. Example tasks:
+"Use integration-event to plan a new completion payload version",
+"Use service-endpoint to add a staff-visible inventory history route", or
+"Use compose-journey to verify a stock failure and owner retry".
+These are usage examples, not implemented features. Customization discovery and
+tool alias enforcement depend on the Copilot client; prose is guidance, not
+mechanical enforcement. Evaluation, plugin packaging and automations are later stages.
 
 ## Try the complete journey
 
