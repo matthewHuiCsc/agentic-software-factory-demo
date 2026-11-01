@@ -1,0 +1,31 @@
+name: boba-platform-tests
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: boba_admin
+      POSTGRES_PASSWORD: boba_admin_local
+      POSTGRES_DB: postgres
+    tmpfs:
+      - /var/lib/postgresql/data
+    volumes:
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/01-databases.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -h 127.0.0.1 -U boba_admin -d postgres']
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+  backend-tests:
+    build:
+      context: .
+      dockerfile: infra/tests/Dockerfile
+    environment:
+      ORDERS_DATABASE_URL: postgres://orders:orders_local@postgres:5432/orders
+      INVENTORY_DATABASE_URL: postgres://inventory:inventory_local@postgres:5432/inventory
+      FINANCE_DATABASE_URL: postgres://finance:finance_local@postgres:5432/finance
+      CUSTOMERS_DATABASE_URL: postgres://customers:customers_local@postgres:5432/customers
+    depends_on:
+      postgres:
+        condition: service_healthy

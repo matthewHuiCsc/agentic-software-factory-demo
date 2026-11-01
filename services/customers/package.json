@@ -9,6 +9,8 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
+    "@boba/persistence": "workspace:*",
+    "zod": "^4.2.1",
     "@boba/contracts": "workspace:*",
     "@boba/service-runtime": "workspace:*"
   }
