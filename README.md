@@ -333,8 +333,12 @@ account/repository supports it; it is not enabled by these files.
    and compares the exact PR diff with the linked issue/plan. It posts up to five
    inline findings and one summary, including the reviewed SHA and missing
    evidence; if evidence or tools are unavailable it still reports why rather
-   than ending silently. CodeQL is a separate non-agent static security check; gh-aw's bounded
-   threat detector also gates all safe outputs. Neither is proof of security.
+   than ending silently. This review workflow opts out of GitHub author-integrity
+   filtering (`min-integrity: none`) so unmerged PR diffs/files are readable;
+   PR/issue/comment content remains untrusted data, with read-only access and
+   threat-detection-gated, bounded safe outputs. CodeQL is a separate non-agent
+   static security check; gh-aw's bounded threat detector also gates all safe
+   outputs. Neither is proof of security.
 5. A person resolves findings, confirms acceptance evidence, green CI/CodeQL and
    reviews on the **current head SHA**, approves, and merges manually. Close the
    issue manually after acceptance. Configure branch protection/rulesets to
