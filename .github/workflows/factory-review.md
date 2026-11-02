@@ -12,6 +12,7 @@ permissions:
   pull-requests: read
 engine:
   id: copilot
+  args: ['--deny-tool', 'write']
   max-turns: 15
 imports:
   - .github/agents/architecture-reviewer.agent.md
@@ -25,9 +26,11 @@ checkout:
   ref: ${{ github.event.pull_request.base.sha }}
   pull-request: false
 tools:
+  edit: false
   bash: ['cat', 'ls', 'find', 'grep', 'head', 'tail', 'wc']
   github:
     toolsets: [repos, issues, pull_requests]
+    allowed-repos: [matthewhuicsc/agentic-software-factory-demo]
     min-integrity: none
 safe-outputs:
   threat-detection:
