@@ -30,6 +30,16 @@ const placeSchema = z.strictObject({
   items: z.array(itemSchema).min(1).max(50),
   currency: z.string().regex(/^[A-Z]{3}$/),
 });
+const menuSchema = z.strictObject({
+  name: z.string().trim().min(1).max(120),
+  description: z.string().trim().min(1).max(500).optional(),
+  unitPriceMinor: z.number().int().min(0).max(100000),
+  currency: z.string().regex(/^[A-Z]{3}$/),
+  available: z.boolean(),
+});
+const menuQuery = z.strictObject({ available: z.enum(['true']).optional() });
+const menuColumns = `id, name, description, unit_price_minor AS "unitPriceMinor",
+  currency, available`;
 const transitionSchema = z.discriminatedUnion('status', [
   z.strictObject({ status: z.literal('preparing') }),
   z.strictObject({ status: z.literal('completed') }),
@@ -83,18 +93,34 @@ export const createApp = (
     await db.query('SELECT 1');
     await readiness?.();
   });
-  app.get('/menu', async () => {
-    const result = await db.query<{
-      id: string;
-      name: string;
-      description: string;
-      unitPriceMinor: number;
-      currency: string;
-    }>(
-      `SELECT id, name, description, unit_price_minor AS "unitPriceMinor", currency
-       FROM order_menu ORDER BY id`,
+  app.get('/menu', async (request) => {
+    const query = menuQuery.parse(request.query);
+    const result = await db.query(
+      `SELECT ${menuColumns} FROM order_menu
+       WHERE ($1::boolean IS NULL OR available = $1)
+       ORDER BY created_at, id`,
+      [query.available ? true : null],
     );
     return { items: result.rows };
+  });
+  app.post('/menu', async (request, reply) => {
+    const input = menuSchema.parse(request.body);
+    const result = await db.query(
+      `INSERT INTO order_menu (id, name, description, unit_price_minor, currency, available)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (lower(trim(name))) DO NOTHING RETURNING ${menuColumns}`,
+      [
+        randomUUID(),
+        input.name,
+        input.description ?? 'Freshly made at the counter.',
+        input.unitPriceMinor,
+        input.currency,
+        input.available,
+      ],
+    );
+    if (!result.rows[0])
+      throw new HttpError(409, 'A menu item with this name already exists');
+    return reply.code(201).send(result.rows[0]);
   });
   app.post('/orders', async (request, reply) => {
     const input = placeSchema.parse(request.body);

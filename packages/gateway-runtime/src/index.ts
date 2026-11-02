@@ -107,6 +107,7 @@ export function createGateway(
   ];
   if (staff)
     routes.push(
+      { method: 'POST', path: '/api/menu', service: 'orders', target: '/menu' },
       {
         method: 'PATCH',
         path: '/api/orders/:id/status',

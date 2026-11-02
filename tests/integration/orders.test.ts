@@ -118,3 +118,124 @@ it('allows preparation then completion, but rejects terminal mutations and stale
     await app.close();
   }
 });
+
+it('creates, lists and filters persisted menu items and keeps order snapshots', async () => {
+  const app = createApp(db);
+  const name = `Taro tea ${randomUUID()}`;
+  const created = await app.inject({
+    method: 'POST',
+    url: '/menu',
+    payload: { name, unitPriceMinor: 725, currency: 'USD', available: true },
+  });
+  expect(created.statusCode).toBe(201);
+  const item = created.json();
+  expect(item).toMatchObject({ name, unitPriceMinor: 725, available: true });
+  const hidden = await app.inject({
+    method: 'POST',
+    url: '/menu',
+    payload: {
+      name: `Hidden ${randomUUID()}`,
+      unitPriceMinor: 100,
+      currency: 'USD',
+      available: false,
+    },
+  });
+  expect(hidden.statusCode).toBe(201);
+  await app.close();
+
+  const reopened = createApp(db);
+  const all = (await reopened.inject({ method: 'GET', url: '/menu' })).json();
+  expect(all.items).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ id: item.id }),
+      expect.objectContaining({ id: hidden.json().id, available: false }),
+      expect.objectContaining({ name: 'Classic milk tea', available: true }),
+    ]),
+  );
+  const available = (
+    await reopened.inject({ method: 'GET', url: '/menu?available=true' })
+  ).json();
+  expect(
+    available.items.every((i: { available: boolean }) => i.available),
+  ).toBe(true);
+  expect(available.items.map((i: { id: string }) => i.id)).not.toContain(
+    hidden.json().id,
+  );
+
+  const duplicate = await reopened.inject({
+    method: 'POST',
+    url: '/menu',
+    payload: {
+      name: `  ${name.toUpperCase()} `,
+      unitPriceMinor: 1,
+      currency: 'USD',
+      available: true,
+    },
+  });
+  expect(duplicate.statusCode).toBe(409);
+
+  const placed = await reopened.inject({
+    method: 'POST',
+    url: '/orders',
+    payload: {
+      storeId: randomUUID(),
+      currency: 'USD',
+      items: [
+        {
+          productId: item.id,
+          name: item.name,
+          quantity: 2,
+          unitPriceMinor: item.unitPriceMinor,
+        },
+      ],
+    },
+  });
+  expect(placed.statusCode).toBe(201);
+  await db.query('UPDATE order_menu SET unit_price_minor = 999 WHERE id = $1', [
+    item.id,
+  ]);
+  const stored = (
+    await reopened.inject({ method: 'GET', url: `/orders/${placed.json().id}` })
+  ).json();
+  expect(stored.items[0]).toMatchObject({ name, unitPriceMinor: 725 });
+  expect(stored.totalMinor).toBe(1450);
+  await reopened.close();
+});
+
+it('keeps seeded menu rows available after migration 003', async () => {
+  const result = await db.query(
+    `SELECT available FROM order_menu WHERE id IN
+     ('00000000-0000-4000-8000-000000000011','00000000-0000-4000-8000-000000000012')`,
+  );
+  expect(result.rows).toEqual([{ available: true }, { available: true }]);
+});
+
+it.each([
+  { name: ' ', unitPriceMinor: 100, currency: 'USD', available: true },
+  { name: 'Tea', unitPriceMinor: 1.5, currency: 'USD', available: true },
+  { name: 'Tea', unitPriceMinor: -1, currency: 'USD', available: true },
+  { name: 'Tea', unitPriceMinor: 100001, currency: 'USD', available: true },
+  { name: 'Tea', unitPriceMinor: 100, currency: 'usd', available: true },
+  { name: 'Tea', unitPriceMinor: 100, currency: 'USD', available: 'yes' },
+  { name: 'Tea', unitPriceMinor: 100, currency: 'USD' },
+  {
+    name: 'Tea',
+    unitPriceMinor: 100,
+    currency: 'USD',
+    available: true,
+    id: 'x',
+  },
+])('rejects invalid menu item %#', async (payload) => {
+  const app = createApp(db);
+  try {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/menu',
+      payload,
+    });
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ error: 'Invalid request' });
+  } finally {
+    await app.close();
+  }
+});

@@ -15,6 +15,7 @@ export const menuItem = z.object({
   description: z.string().optional(),
   unitPriceMinor: z.number(),
   currency: z.string(),
+  available: z.boolean(),
 });
 export type MenuItem = z.infer<typeof menuItem>;
 export const orderSchema = z.object({

@@ -28,7 +28,9 @@ export function App() {
   useEffect(() => {
     const controller = new AbortController();
     void Promise.all([
-      api('/menu', list(menuItem), { signal: controller.signal }),
+      api('/menu?available=true', list(menuItem), {
+        signal: controller.signal,
+      }),
       api(`/customers/${CUSTOMER_ID}`, customerSchema, {
         signal: controller.signal,
       }),

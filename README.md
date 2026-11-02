@@ -437,7 +437,13 @@ optional values. There is no authentication: use fictional customer data only.
 | Finance   | `POST /entries`, `GET /entries`, `GET /entries/:id`, `GET /summary?storeId=UUID`                           | Immutable manual income/expense entries; totals grouped by currency |
 | Customers | `POST /customers`, `GET /customers`, `GET /customers/:id`, `PATCH /customers/:id`                          | Profiles with normalized, unique emails and partial updates         |
 
-**Orders:** `GET /menu` reads two seeded house drinks from Orders' own menu table.
+**Orders:** `GET /menu` lists items from Orders' own menu table (two seeded house
+drinks plus staff-created items), including `available`; `?available=true` returns
+only available items. `POST /menu` accepts strict `{ name, description?,
+unitPriceMinor (0..100000), currency, available }`, rejects case-insensitive
+duplicate names with 409 and returns 201. Only the Store Ops gateway exposes
+`POST /api/menu`. New items have no Inventory recipe, so completing an order for
+one shows a visible failed Inventory effect while Finance and Customers apply.
 Placement accepts `storeId`, optional `customerId`, `currency` (three
 uppercase letters), and 1..50 `items`. Each item is a caller-provided snapshot:
 `productId`, `name`, `quantity` (1..100), `unitPriceMinor` (0..100000). The service
