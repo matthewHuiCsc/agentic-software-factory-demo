@@ -174,3 +174,66 @@ it('rejects non-JSON and network upstream failures explicitly', async () => {
     await upstream.close();
   }
 });
+
+it('exposes menu creation only through the staff gateway and preserves upstream errors', async () => {
+  const upstream = createHealthApp('upstream');
+  upstream.post('/menu', async (request, reply) =>
+    (request.body as { name?: string }).name === 'Limited'
+      ? reply
+          .code(429)
+          .header('retry-after', '60')
+          .send({ error: 'Rate limit exceeded, retry in 1 minute' })
+      : (request.body as { name?: string }).name
+        ? reply.code(201).send({ id: 'new', name: 'Taro tea' })
+        : reply.code(400).send({ error: 'Invalid request' }),
+  );
+  upstream.get('/menu', async (request) => ({
+    items: [],
+    query: request.query,
+  }));
+  const url = await upstream.listen({ port: 0, host: '127.0.0.1' });
+  const urls = { orders: url, inventory: url, finance: url, customers: url };
+  const staffApp = staff(urls);
+  const customerApp = storefront(urls);
+  try {
+    const created = await staffApp.inject({
+      method: 'POST',
+      url: '/api/menu',
+      payload: { name: 'Taro tea' },
+    });
+    expect(created.statusCode).toBe(201);
+    expect(created.json()).toEqual({ id: 'new', name: 'Taro tea' });
+    const invalid = await staffApp.inject({
+      method: 'POST',
+      url: '/api/menu',
+      payload: {},
+    });
+    expect(invalid.statusCode).toBe(400);
+    expect(invalid.json()).toEqual({ error: 'Invalid request' });
+    const limited = await staffApp.inject({
+      method: 'POST',
+      url: '/api/menu',
+      payload: { name: 'Limited' },
+    });
+    expect(limited.statusCode).toBe(429);
+    expect(limited.json()).toEqual({
+      error: 'Rate limit exceeded, retry in 1 minute',
+    });
+    expect(limited.headers['retry-after']).toBe('60');
+    const filtered = await customerApp.inject({
+      method: 'GET',
+      url: '/api/menu?available=true',
+    });
+    expect(filtered.json().query).toEqual({ available: 'true' });
+    const blocked = await customerApp.inject({
+      method: 'POST',
+      url: '/api/menu',
+      payload: { name: 'Taro tea' },
+    });
+    expect(blocked.statusCode).toBe(404);
+  } finally {
+    await staffApp.close();
+    await customerApp.close();
+    await upstream.close();
+  }
+});

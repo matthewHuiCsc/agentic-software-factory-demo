@@ -2,6 +2,8 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import {
   api,
   dashboardSchema,
+  menuItem,
+  list,
   orderSchema,
   stockSchema,
   STORE_ID,
@@ -11,11 +13,12 @@ import {
   JourneyPanel,
   Status,
   type Dashboard,
+  type MenuItem,
   type Order,
   type Stock,
 } from '@boba/web-ui';
 
-type Tab = 'orders' | 'inventory' | 'finance' | 'customers';
+type Tab = 'orders' | 'inventory' | 'finance' | 'customers' | 'menu';
 export function App() {
   const detailRef = useRef<HTMLElement>(null);
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
@@ -96,7 +99,7 @@ export function App() {
       setBusy(false);
     }
   };
-  const section = dashboard?.[tab];
+  const section = tab === 'menu' ? undefined : dashboard?.[tab];
   return (
     <>
       <a className="skip-link" href="#main">
@@ -129,31 +132,33 @@ export function App() {
           </button>
         </div>
         <nav className="ops-tabs" aria-label="Store sections">
-          {(['orders', 'inventory', 'finance', 'customers'] as const).map(
-            (value) => (
-              <button
-                key={value}
-                aria-current={tab === value ? 'page' : undefined}
-                onClick={() => {
-                  setTab(value);
-                  setNotice('');
-                }}
-              >
-                {value === 'finance'
-                  ? 'Sales ledger'
+          {(
+            ['orders', 'inventory', 'finance', 'customers', 'menu'] as const
+          ).map((value) => (
+            <button
+              key={value}
+              aria-current={tab === value ? 'page' : undefined}
+              onClick={() => {
+                setTab(value);
+                setNotice('');
+              }}
+            >
+              {value === 'finance'
+                ? 'Sales ledger'
+                : value === 'menu'
+                  ? 'Menu items'
                   : value.charAt(0).toUpperCase() + value.slice(1)}
-                {value === 'orders' && orders.length > 0 && (
-                  <span>
-                    {
-                      orders.filter((o) =>
-                        ['confirmed', 'preparing'].includes(o.status),
-                      ).length
-                    }
-                  </span>
-                )}
-              </button>
-            ),
-          )}
+              {value === 'orders' && orders.length > 0 && (
+                <span>
+                  {
+                    orders.filter((o) =>
+                      ['confirmed', 'preparing'].includes(o.status),
+                    ).length
+                  }
+                </span>
+              )}
+            </button>
+          ))}
         </nav>
         {error && <ErrorNotice message={error} />}
         {notice && (
@@ -171,6 +176,7 @@ export function App() {
             message={`${tab}: ${section.error}. This section is unavailable, not empty.`}
           />
         )}
+        {tab === 'menu' && <MenuPanel />}
         {tab === 'orders' && dashboard?.orders.status === 'available' && (
           <div className="counter-layout">
             <section className="order-queue" aria-label="Orders">
@@ -442,6 +448,137 @@ export function App() {
         Independent services. One clear view of the shop.
       </footer>
     </>
+  );
+}
+
+function MenuPanel() {
+  const [items, setItems] = useState<MenuItem[] | null>(null);
+  const [loadError, setLoadError] = useState('');
+  const [revision, setRevision] = useState(0);
+  const [name, setName] = useState('');
+  const [price, setPrice] = useState('');
+  const [available, setAvailable] = useState(true);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    const controller = new AbortController();
+    void api('/menu', list(menuItem), { signal: controller.signal })
+      .then((value) => {
+        setItems(value.items);
+        setLoadError('');
+      })
+      .catch((e: unknown) => {
+        if (!controller.signal.aborted)
+          setLoadError(
+            e instanceof Error ? e.message : 'Could not load menu items.',
+          );
+      });
+    return () => controller.abort();
+  }, [revision]);
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (busy) return;
+    setBusy(true);
+    setError('');
+    setNotice('');
+    try {
+      const dollars = price.trim();
+      if (!/^\d+(\.\d{1,2})?$/.test(dollars))
+        throw new Error('Enter a price such as 6.25.');
+      await api('/menu', menuItem, {
+        method: 'POST',
+        body: JSON.stringify({
+          name,
+          unitPriceMinor: Math.round(Number(dollars) * 100),
+          currency: 'USD',
+          available,
+        }),
+      });
+      setName('');
+      setPrice('');
+      setNotice('Menu item saved.');
+      setRevision((v) => v + 1);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not save menu item.');
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <section aria-label="Menu items">
+      <div className="section-heading">
+        <h2>Menu items</h2>
+        <span>Owned by Orders</span>
+      </div>
+      <form onSubmit={(event) => void submit(event)}>
+        <label>
+          Item name
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            maxLength={120}
+          />
+        </label>
+        <label>
+          Price (USD)
+          <input
+            value={price}
+            onChange={(e) => setPrice(e.target.value)}
+            required
+            inputMode="decimal"
+          />
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={available}
+            onChange={(e) => setAvailable(e.target.checked)}
+          />{' '}
+          Available to customers
+        </label>
+        <button className="button" type="submit" disabled={busy}>
+          Add menu item
+        </button>
+      </form>
+      {error && <ErrorNotice message={error} />}
+      {notice && (
+        <p className="notice" role="status">
+          {notice}
+        </p>
+      )}
+      {loadError && <ErrorNotice message={loadError} />}
+      {!items && !loadError && (
+        <p className="empty" role="status">
+          Loading menu items…
+        </p>
+      )}
+      {items?.length === 0 && <p className="empty">No menu items yet.</p>}
+      {items && items.length > 0 && (
+        <div className="table-scroll">
+          <table>
+            <caption className="sr-only">Menu items</caption>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Price</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((item) => (
+                <tr key={item.id}>
+                  <td>{item.name}</td>
+                  <td>{money(item.unitPriceMinor, item.currency)}</td>
+                  <td>{item.available ? 'Available' : 'Unavailable'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
   );
 }
 

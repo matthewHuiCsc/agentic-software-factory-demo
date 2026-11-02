@@ -445,7 +445,23 @@ optional values. There is no authentication: use fictional customer data only.
 | Finance   | `POST /entries`, `GET /entries`, `GET /entries/:id`, `GET /summary?storeId=UUID`                           | Immutable manual income/expense entries; totals grouped by currency |
 | Customers | `POST /customers`, `GET /customers`, `GET /customers/:id`, `PATCH /customers/:id`                          | Profiles with normalized, unique emails and partial updates         |
 
-**Orders:** `GET /menu` reads two seeded house drinks from Orders' own menu table.
+**Orders:** `GET /menu` lists items from Orders' own menu table (two seeded house
+drinks plus staff-created items), including `available`; `?available=true` returns
+only available items. `POST /menu` accepts strict `{ name, description?,
+unitPriceMinor (0..100000), currency: 'USD', available }`, rejects non-USD
+currencies with 400 and case-insensitive duplicate names with 409, and returns 201. Menu creation is USD-only while the storefront uses USD without conversion.
+Only the Store Ops gateway exposes
+`POST /api/menu`. New items have no Inventory recipe, so completing an order for
+one shows a visible failed Inventory effect while Finance and Customers apply.
+Menu requests are rate-limited by Orders using `@fastify/rate-limit`: at most
+120 reads and 30 creates per minute per source IP, with separate budgets.
+Excess requests are rejected before validation or database access with 429,
+an `error` message, and a `Retry-After` header preserved by both gateways.
+Orders does not trust forwarded IP headers, so browsers using the same gateway
+share that gateway's source-IP budget. Limits are in-memory, reset on restart,
+and apply only to the menu routes, not order processing or health checks.
+This is demo resource protection, not authentication or production-grade
+distributed throttling.
 Placement accepts `storeId`, optional `customerId`, `currency` (three
 uppercase letters), and 1..50 `items`. Each item is a caller-provided snapshot:
 `productId`, `name`, `quantity` (1..100), `unitPriceMinor` (0..100000). The service

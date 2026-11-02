@@ -123,7 +123,8 @@ test('mobile ordering is usable and staff rejection is shown to the customer', a
 test('a gateway failure is visible and loading can recover', async ({
   page,
 }) => {
-  await page.route('**/api/menu', (route) =>
+  const menuUrl = (url: URL) => url.pathname === '/api/menu';
+  await page.route(menuUrl, (route) =>
     route.fulfill({
       status: 502,
       contentType: 'application/json',
@@ -137,10 +138,52 @@ test('a gateway failure is visible and loading can recover', async ({
   await expect(
     page.getByRole('button', { name: 'Place pickup order' }),
   ).toBeDisabled();
-  await page.unroute('**/api/menu');
+  await page.unroute(menuUrl);
   await page.getByRole('button', { name: 'Retry loading' }).click();
   await expect(
     page.getByRole('button', { name: 'Add Classic milk tea', exact: true }),
   ).toBeVisible();
   await expect(page.getByRole('alert')).toHaveCount(0);
+});
+
+test('staff adds a menu item, customer orders it, and staff completes it', async ({
+  browser,
+}) => {
+  const name = `Taro tea ${Date.now()}`;
+  const context = await browser.newContext();
+  const staff = await context.newPage();
+  const customer = await context.newPage();
+  await staff.goto('http://localhost:8081');
+  await staff.getByRole('button', { name: 'Menu items', exact: true }).click();
+  await staff.getByLabel('Item name').fill(name);
+  await staff.getByLabel('Price (USD)').fill('7.25');
+  await staff.getByRole('button', { name: 'Add menu item' }).click();
+  await expect(staff.getByRole('table')).toContainText(name);
+  await customer.goto('http://localhost:8080');
+  await customer
+    .getByRole('button', { name: `Add ${name}`, exact: true })
+    .click();
+  await customer.getByRole('button', { name: 'Place pickup order' }).click();
+  await expect(
+    customer.getByRole('heading', { name: 'You’re on the list.' }),
+  ).toBeVisible();
+  const id = await customer.evaluate(() => localStorage.getItem('boba-order'));
+  await staff.getByRole('button', { name: 'Orders' }).click();
+  await staff
+    .getByRole('button')
+    .filter({ hasText: `#${id!.slice(0, 8)}` })
+    .click();
+  await staff.getByRole('button', { name: 'Start preparing' }).click();
+  await staff.getByRole('button', { name: 'Complete order' }).click();
+  const effects = staff.getByRole('region', { name: 'Order processing' });
+  await expect(
+    effects.locator('li').filter({ hasText: 'Simulated sale' }),
+  ).toContainText('applied');
+  await expect(
+    effects.locator('li').filter({ hasText: 'Customer activity' }),
+  ).toContainText('applied');
+  await expect(
+    effects.locator('li').filter({ hasText: 'Ingredient stock' }),
+  ).toContainText('failed');
+  await context.close();
 });
