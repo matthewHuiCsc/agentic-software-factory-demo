@@ -194,15 +194,19 @@ docker compose up --build --wait --wait-timeout 180
 pnpm exec playwright install chromium
 CI=true pnpm test:browser
 
-# Validate workflow expressions and step syntax with actionlint:
-docker run --rm -v "$PWD:/repo:ro" -w /repo rhysd/actionlint:1.7.7
+# Validate workflow expressions and step syntax with current actionlint:
+docker run --rm -v "$PWD:/repo:ro" -w /repo rhysd/actionlint:1.7.12 \
+  .github/workflows/ci.yml .github/workflows/security.yml \
+  .github/workflows/skill-evals.yml
+# Compiled gh-aw locks use gh-aw's compatible bundled actionlint:
+gh aw lint
 ```
 
 On hosted Linux, CI installs Chromium with `--with-deps` to provide system
 libraries; macOS needs only the browser download. GitHub must enable Actions and
 have hosted-runner minutes and network access to npm, actions, browser downloads
-and Docker Hub. No remote has been configured locally, so a hosted run requires
-the user to publish the repository. Do not copy CI's final
+and Docker Hub. Hosted runs require the user to publish the reviewed commits to the configured
+GitHub remote. Do not copy CI's final
 `docker compose down --volumes` into normal local cleanup unless you intend to
 delete demo data; use `docker compose down` to preserve it.
 
@@ -280,6 +284,120 @@ Architecture-reviewer flaw/clean-diff and tool-enforcement evaluations remain a
 follow-up; no runtime restriction or measured skill improvement is claimed here.
 The earlier [research proposal](research/ai-skill-evaluation.md) records possible
 future infrastructure, not the implementation chosen for this simpler slice.
+
+### Issue-to-human-merged-PR loop (GitHub Agentic Workflows)
+
+The [gh-aw research](research/gh-aw-factory-loop.md) records official sources and
+limitations. Three versioned Markdown workflows and their compiler-generated
+`.lock.yml` files implement a thin, opt-in loop using the **Copilot engine**:
+[plan](.github/workflows/factory-plan.md),
+[implement](.github/workflows/factory-implement.md), and
+[independent architecture review](.github/workflows/factory-review.md).
+There is no Copilot coding-agent assignment, schedule, personal canvas dependency,
+automatic plan approval, automatic merge, or autonomous repair loop.
+
+**One-time human setup:** publish this reviewed commit to `main` only when ready.
+Enable GitHub Actions and its **Allow GitHub Actions to create and approve pull
+requests** setting (these workflows create drafts, never approve them). Create
+three labels: `factory`, `factory-approved`, `factory-review`. In repository
+Settings > Secrets and variables > Actions, add `COPILOT_GITHUB_TOKEN`, a
+user-owned fine-grained PAT with **Copilot Requests: Read**, issued by an account
+with Copilot access. This is the same secret name the Harbor pilot expects;
+ordinary `GITHUB_TOKEN` cannot authenticate personal-repository Copilot requests.
+Do not put credentials in issues, source, plans or PRs. No extra write PAT/App
+secret is required. Enable code scanning for the separate [CodeQL
+check](.github/workflows/security.yml); GitHub Code Security licensing is required
+if using a private repository. Request Copilot code review manually where the
+account/repository supports it; it is not enabled by these files.
+
+1. Open a small issue containing the specification, non-goals and numbered,
+   observable acceptance criteria. A human with repository admin, maintain or
+   write access applies `factory`. **Factory plan** reads local skills/source and
+   posts one plan; missing scope/criteria produce a blocker, not implementation.
+2. Review the plan against the issue. Apply `factory-approved` to authorize one
+   **Factory implement** run. It implements/tests from the issue criteria and
+   creates at most one **draft** PR through gh-aw safe outputs. Workflow/control
+   files and root manifests are excluded by a file allowlist; new dependencies or
+   broader factory changes require a separate human-reviewed change.
+3. Inspect the draft diff and evidence before **marking it ready for review**.
+   This human event runs existing **CI** and **Security / CodeQL JavaScript and
+   TypeScript** on the PR. `GITHUB_TOKEN`-created PRs do not automatically trigger
+   ordinary push/PR workflows; do not assume checks ran at creation. Both
+   workflows explicitly include `ready_for_review`. If necessary, manually run
+   CI and Security selecting the PR branch, and verify their checked SHA.
+4. Request **Copilot code review** separately, then apply `factory-review` to the
+   PR. A fresh gh-aw run uses native `engine.agent: architecture-reviewer` and
+   compares the exact PR diff with the linked issue/plan. It posts up to five
+   inline findings and one summary, including the reviewed SHA and missing
+   evidence. CodeQL is a separate non-agent static security check; gh-aw's bounded
+   threat detector also gates all safe outputs. Neither is proof of security.
+5. A person resolves findings, confirms acceptance evidence, green CI/CodeQL and
+   reviews on the **current head SHA**, approves, and merges manually. Close the
+   issue manually after acceptance. Configure branch protection/rulesets to
+   require these checks and a human approval if enforcement is desired; these
+   files do not change repository settings or bypass protections.
+
+Only labeled events from human senders with an explicitly allowed repository
+role are admitted; bots cannot advance stages with their own comments/labels.
+The review uses `pull_request_target` deliberately to load the **trusted base**
+workflow/persona, checks out only the base SHA, rejects forks/non-default targets,
+has no shell tool and reads head source/diffs via read-only GitHub tools. Do not
+change it to execute or check out PR code with secrets. The agent jobs have
+read-only GitHub permissions; framework activation/reporting and isolated
+safe-output jobs have their own scoped write permissions. Agent-requested
+outputs are published only after threat detection. The generated PR publisher necessarily
+uses authenticated git credentials in its isolated publishing job; `gh aw lint`
+reports the upstream `artipacked` warning there, not in an agent checkout. Default
+firewall isolation, scoped network groups, immutable action/container pins and
+protected-file checks remain enabled. Prompt constraints are guidance, not a
+replacement for these mechanical boundaries.
+
+**Costs and retries:** per agent run the plan allows 12 turns / 10 AI credits /
+10 minutes, implementation 30 / 30 / 30, and review 15 / 15 / 15. Each separate
+threat detector allows 5 turns / 5 credits (upstream detector timeout: 10 minutes).
+One pass therefore has 70 configured AI credits across agents and detectors;
+credits are not dollars or a guaranteed bill, and Actions, Copilot code review,
+and Harbor spend are separate. Usage can overshoot at a request boundary.
+Repository variable `GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS` can provide an additional admission budget;
+inspect gh-aw usage/billing before enabling. Per-issue/PR concurrency prevents
+overlap, not repeated spending. Removing/reapplying labels or rerunning Actions
+is a new paid attempt. Never automatically retry.
+
+Revoke approval before editing an issue or plan; review again and reapply
+`factory-approved`. An open linked PR should block duplicate implementation,
+but that check and plan freshness are agent-guided, not an atomic issue lock or
+cryptographic approval of a plan revision. For review after a fix, remove/reapply
+`factory-review`; previous findings do not cover a new SHA. Fixes are manual in
+this first slice. Failures/budget exhaustion or unavailable Docker evidence are
+blockers, not green acceptance; inspect run logs and only retry deliberately.
+Start with a narrow existing-dependency unit-tested change. The metered hosted
+journey, native agent tool exposure, and CodeQL upload remain unverified until
+the first human-authorized live run.
+
+**No-model authoring checks:** install the official CLI, use the same version that
+generated the committed locks (`gh aw` v1.0.1), and never hand-edit `.lock.yml`.
+Initialization was local-only (`--no-mcp --no-agent --no-skill`); it does not
+install another coding-agent setup or replace our skills/reviewer.
+
+```sh
+gh extension install github/gh-aw
+gh aw --version
+gh aw compile --strict --validate --actionlint --no-check-update
+gh aw validate --strict --no-check-update
+gh aw lint
+pnpm lint
+pnpm typecheck
+pnpm test
+```
+
+Commit regenerated `.lock.yml` and `.github/aw/actions-lock.json` alongside the
+Markdown sources. Generated locks are excluded from Prettier; gh-aw/actionlint
+validate them. Stock actionlint (including 1.7.12) cannot parse gh-aw-generated
+`job.workflow_ref` and `concurrency.queue`; use gh-aw's compatible bundled
+actionlint for locks, and stock 1.7.12 for the ordinary YAML workflows above.
+These commands do not dispatch agents,
+create remote labels, read/set secrets or spend model credits. Review compiler
+security-escalation warnings before accepting a changed action/secret/trigger.
 
 ## Try the complete journey
 

@@ -5,3 +5,4 @@ dist/
 coverage/
 .impeccable/hook.cache.json
 harbor-workspace/
+.github/workflows/*.lock.yml
