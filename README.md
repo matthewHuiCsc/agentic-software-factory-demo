@@ -353,9 +353,10 @@ protected-file checks remain enabled. Prompt constraints are guidance, not a
 replacement for these mechanical boundaries.
 
 **Costs and retries:** per agent run the plan allows 12 turns / 100 AI credits /
-10 minutes, implementation 30 / 30 / 30, and review 15 / 15 / 15. Each separate
+10 minutes, implementation 30 turns / 300 AI credits / 30 minutes, and review
+15 turns / 100 AI credits / 15 minutes. Each separate
 threat detector allows 5 turns / 5 credits (upstream detector timeout: 10 minutes).
-One pass therefore has 160 configured AI credits across agents and detectors;
+One pass therefore has 515 configured AI credits across agents and detectors;
 credits are not dollars or a guaranteed bill, and Actions, Copilot code review,
 and Harbor spend are separate. Usage can overshoot at a request boundary.
 Repository variable `GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS` can provide an additional admission budget;

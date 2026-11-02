@@ -14,7 +14,7 @@ engine:
   id: copilot
   agent: architecture-reviewer
   max-turns: 15
-max-ai-credits: 15
+max-ai-credits: 100
 timeout-minutes: 15
 concurrency:
   group: factory-review-${{ github.event.pull_request.number }}

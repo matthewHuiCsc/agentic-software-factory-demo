@@ -13,7 +13,7 @@ permissions:
 engine:
   id: copilot
   max-turns: 30
-max-ai-credits: 30
+max-ai-credits: 300
 timeout-minutes: 30
 runtimes:
   node:
