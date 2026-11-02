@@ -34,7 +34,7 @@ const menuSchema = z.strictObject({
   name: z.string().trim().min(1).max(120),
   description: z.string().trim().min(1).max(500).optional(),
   unitPriceMinor: z.number().int().min(0).max(100000),
-  currency: z.string().regex(/^[A-Z]{3}$/),
+  currency: z.literal('USD'),
   available: z.boolean(),
 });
 const menuQuery = z.strictObject({ available: z.enum(['true']).optional() });

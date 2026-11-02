@@ -123,7 +123,8 @@ test('mobile ordering is usable and staff rejection is shown to the customer', a
 test('a gateway failure is visible and loading can recover', async ({
   page,
 }) => {
-  await page.route('**/api/menu', (route) =>
+  const menuUrl = (url: URL) => url.pathname === '/api/menu';
+  await page.route(menuUrl, (route) =>
     route.fulfill({
       status: 502,
       contentType: 'application/json',
@@ -137,7 +138,7 @@ test('a gateway failure is visible and loading can recover', async ({
   await expect(
     page.getByRole('button', { name: 'Place pickup order' }),
   ).toBeDisabled();
-  await page.unroute('**/api/menu');
+  await page.unroute(menuUrl);
   await page.getByRole('button', { name: 'Retry loading' }).click();
   await expect(
     page.getByRole('button', { name: 'Add Classic milk tea', exact: true }),

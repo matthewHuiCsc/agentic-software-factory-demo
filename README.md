@@ -440,8 +440,9 @@ optional values. There is no authentication: use fictional customer data only.
 **Orders:** `GET /menu` lists items from Orders' own menu table (two seeded house
 drinks plus staff-created items), including `available`; `?available=true` returns
 only available items. `POST /menu` accepts strict `{ name, description?,
-unitPriceMinor (0..100000), currency, available }`, rejects case-insensitive
-duplicate names with 409 and returns 201. Only the Store Ops gateway exposes
+unitPriceMinor (0..100000), currency: 'USD', available }`, rejects non-USD
+currencies with 400 and case-insensitive duplicate names with 409, and returns 201. Menu creation is USD-only while the storefront uses USD without conversion.
+Only the Store Ops gateway exposes
 `POST /api/menu`. New items have no Inventory recipe, so completing an order for
 one shows a visible failed Inventory effect while Finance and Customers apply.
 Placement accepts `storeId`, optional `customerId`, `currency` (three

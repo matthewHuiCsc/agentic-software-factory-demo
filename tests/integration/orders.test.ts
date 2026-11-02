@@ -129,7 +129,12 @@ it('creates, lists and filters persisted menu items and keeps order snapshots', 
   });
   expect(created.statusCode).toBe(201);
   const item = created.json();
-  expect(item).toMatchObject({ name, unitPriceMinor: 725, available: true });
+  expect(item).toMatchObject({
+    name,
+    unitPriceMinor: 725,
+    currency: 'USD',
+    available: true,
+  });
   const hidden = await app.inject({
     method: 'POST',
     url: '/menu',
@@ -209,6 +214,35 @@ it('keeps seeded menu rows available after migration 003', async () => {
   );
   expect(result.rows).toEqual([{ available: true }, { available: true }]);
 });
+
+it.each(['EUR', 'GBP', 'JPY'])(
+  'rejects non-USD menu currency %s without persisting an item',
+  async (currency) => {
+    const app = createApp(db);
+    const name = `Non-USD tea ${randomUUID()}`;
+    try {
+      const response = await app.inject({
+        method: 'POST',
+        url: '/menu',
+        payload: { name, unitPriceMinor: 100, currency, available: true },
+      });
+      expect(response.statusCode).toBe(400);
+      expect(response.json()).toMatchObject({
+        error: 'Invalid request',
+        issues: expect.arrayContaining([
+          expect.objectContaining({ path: ['currency'] }),
+        ]),
+      });
+      const menu = await app.inject({ method: 'GET', url: '/menu' });
+      expect(menu.statusCode).toBe(200);
+      expect(menu.json().items).not.toEqual(
+        expect.arrayContaining([expect.objectContaining({ name })]),
+      );
+    } finally {
+      await app.close();
+    }
+  },
+);
 
 it.each([
   { name: ' ', unitPriceMinor: 100, currency: 'USD', available: true },
