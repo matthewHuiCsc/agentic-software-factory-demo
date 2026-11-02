@@ -326,10 +326,14 @@ account/repository supports it; it is not enabled by these files.
    workflows explicitly include `ready_for_review`. If necessary, manually run
    CI and Security selecting the PR branch, and verify their checked SHA.
 4. Request **Copilot code review** separately, then apply `factory-review` to the
-   PR. A fresh gh-aw run uses native `engine.agent: architecture-reviewer` and
-   compares the exact PR diff with the linked issue/plan. It posts up to five
+   PR. A fresh gh-aw run imports the
+   [architecture-reviewer](.github/agents/architecture-reviewer.agent.md)
+   guidance as workflow instructions (not `engine.agent`, whose local
+   `read`/`search` allowlist would hide the GitHub read and safe-output tools)
+   and compares the exact PR diff with the linked issue/plan. It posts up to five
    inline findings and one summary, including the reviewed SHA and missing
-   evidence. CodeQL is a separate non-agent static security check; gh-aw's bounded
+   evidence; if evidence or tools are unavailable it still reports why rather
+   than ending silently. CodeQL is a separate non-agent static security check; gh-aw's bounded
    threat detector also gates all safe outputs. Neither is proof of security.
 5. A person resolves findings, confirms acceptance evidence, green CI/CodeQL and
    reviews on the **current head SHA**, approves, and merges manually. Close the

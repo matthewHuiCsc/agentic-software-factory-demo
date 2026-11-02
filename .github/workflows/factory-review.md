@@ -12,8 +12,9 @@ permissions:
   pull-requests: read
 engine:
   id: copilot
-  agent: architecture-reviewer
   max-turns: 15
+imports:
+  - .github/agents/architecture-reviewer.agent.md
 max-ai-credits: 100
 timeout-minutes: 15
 concurrency:
@@ -38,7 +39,14 @@ safe-outputs:
 
 # Independent specification and architecture review
 
-Use the native architecture-reviewer agent, independently of the implementer.
+Apply the imported architecture-reviewer guidance above, independently of the
+implementer. The workflow imports that agent's instructions rather than selecting
+it with `engine.agent`, because its local `read`/`search` tool allowlist would hide
+the `github` read tools and `safeoutputs` tools this run needs. Here, its "file
+read and search only" rule means stay read-only: use the provided `github` read
+tools and `safeoutputs` tools (shell only to invoke them or read checked-out
+files), and never edit files, run builds/tests or execute PR code.
+
 Read PR #${{ github.event.pull_request.number }} in ${{ github.repository }} via
 GitHub read tools: base/head SHAs, changed files, full diff, reviews and CI checks.
 Do not execute or check out PR code. Read the linked issue's original specification,
@@ -59,6 +67,12 @@ safe outputs. Post one summary comment identifying reviewed head SHA, criterion
 coverage, confirmed defects, security concerns, missing runtime evidence and CI
 status. If no supported findings exist, say so without claiming correctness.
 Do not submit an approving review, change labels/code, mark ready or merge.
-The agent persona's "do not publish" rule prohibits direct writes; returning
-findings through these bounded safe outputs is the caller's reporting interface.
+The imported "do not publish" rule prohibits direct writes; returning findings
+through these bounded safe outputs is the caller's reporting interface.
 Copilot code review and a human security/merge decision are separate gates.
+
+Always finish with a safe output; never stop silently. Normally that is the
+summary comment. If a required tool or evidence is unavailable, still post the
+summary comment stating what could not be reviewed and why; if even that is not
+possible, call `report_incomplete` (or `noop` when there is genuinely nothing to
+review) with the specific reason.
