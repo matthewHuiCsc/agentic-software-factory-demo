@@ -244,6 +244,65 @@ it.each(['EUR', 'GBP', 'JPY'])(
   },
 );
 
+it('rate-limits menu reads across query strings without blocking other routes', async () => {
+  const app = createApp(db);
+  try {
+    for (let request = 0; request < 120; request++) {
+      const response = await app.inject({
+        method: 'GET',
+        url: request % 2 === 0 ? '/menu' : '/menu?available=true',
+      });
+      expect(response.statusCode).toBe(200);
+    }
+    const limited = await app.inject({ method: 'GET', url: '/menu' });
+    expect(limited.statusCode).toBe(429);
+    expect(limited.json().error).toMatch(/Rate limit exceeded/);
+    expect(Number(limited.headers['retry-after'])).toBeGreaterThan(0);
+    expect(
+      (await app.inject({ method: 'GET', url: '/health' })).statusCode,
+    ).toBe(200);
+    expect(
+      (await app.inject({ method: 'GET', url: '/orders' })).statusCode,
+    ).toBe(200);
+  } finally {
+    await app.close();
+  }
+});
+
+it('rate-limits menu creates without persisting the rejected item', async () => {
+  const app = createApp(db);
+  const name = `Rate-limited tea ${randomUUID()}`;
+  try {
+    for (let request = 0; request < 30; request++) {
+      const response = await app.inject({
+        method: 'POST',
+        url: '/menu',
+        payload: {
+          name: `${name} ${request}`,
+          unitPriceMinor: 100,
+          currency: 'USD',
+          available: true,
+        },
+      });
+      expect(response.statusCode).toBe(201);
+    }
+    const limited = await app.inject({
+      method: 'POST',
+      url: '/menu',
+      payload: { name, unitPriceMinor: 100, currency: 'USD', available: true },
+    });
+    expect(limited.statusCode).toBe(429);
+    expect(limited.json().error).toMatch(/Rate limit exceeded/);
+    const menu = await app.inject({ method: 'GET', url: '/menu' });
+    expect(menu.statusCode).toBe(200);
+    expect(menu.json().items).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ name })]),
+    );
+  } finally {
+    await app.close();
+  }
+});
+
 it.each([
   { name: ' ', unitPriceMinor: 100, currency: 'USD', available: true },
   { name: 'Tea', unitPriceMinor: 1.5, currency: 'USD', available: true },

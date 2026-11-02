@@ -9,10 +9,11 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
-    "@boba/persistence": "workspace:*",
-    "zod": "^4.2.1",
     "@boba/contracts": "workspace:*",
+    "@boba/messaging": "workspace:*",
+    "@boba/persistence": "workspace:*",
     "@boba/service-runtime": "workspace:*",
-    "@boba/messaging": "workspace:*"
+    "@fastify/rate-limit": "^10.3.0",
+    "zod": "^4.2.1"
   }
 }

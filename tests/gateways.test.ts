@@ -178,9 +178,14 @@ it('rejects non-JSON and network upstream failures explicitly', async () => {
 it('exposes menu creation only through the staff gateway and preserves upstream errors', async () => {
   const upstream = createHealthApp('upstream');
   upstream.post('/menu', async (request, reply) =>
-    (request.body as { name?: string }).name
-      ? reply.code(201).send({ id: 'new', name: 'Taro tea' })
-      : reply.code(400).send({ error: 'Invalid request' }),
+    (request.body as { name?: string }).name === 'Limited'
+      ? reply
+          .code(429)
+          .header('retry-after', '60')
+          .send({ error: 'Rate limit exceeded, retry in 1 minute' })
+      : (request.body as { name?: string }).name
+        ? reply.code(201).send({ id: 'new', name: 'Taro tea' })
+        : reply.code(400).send({ error: 'Invalid request' }),
   );
   upstream.get('/menu', async (request) => ({
     items: [],
@@ -205,6 +210,16 @@ it('exposes menu creation only through the staff gateway and preserves upstream 
     });
     expect(invalid.statusCode).toBe(400);
     expect(invalid.json()).toEqual({ error: 'Invalid request' });
+    const limited = await staffApp.inject({
+      method: 'POST',
+      url: '/api/menu',
+      payload: { name: 'Limited' },
+    });
+    expect(limited.statusCode).toBe(429);
+    expect(limited.json()).toEqual({
+      error: 'Rate limit exceeded, retry in 1 minute',
+    });
+    expect(limited.headers['retry-after']).toBe('60');
     const filtered = await customerApp.inject({
       method: 'GET',
       url: '/api/menu?available=true',

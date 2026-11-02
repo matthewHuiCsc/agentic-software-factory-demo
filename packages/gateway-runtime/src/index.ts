@@ -31,7 +31,11 @@ export function upstreamsFromEnvironment(): Upstreams {
   };
 }
 
-type UpstreamResult = { statusCode: number; data: Record<string, unknown> };
+type UpstreamResult = {
+  statusCode: number;
+  data: Record<string, unknown>;
+  retryAfter: string | null;
+};
 async function upstream(
   base: string,
   path: string,
@@ -58,7 +62,11 @@ async function upstream(
   } catch {
     throw new HttpError(502, 'Service returned an invalid JSON response');
   }
-  return { statusCode: response.status, data };
+  return {
+    statusCode: response.status,
+    data,
+    retryAfter: response.headers.get('retry-after'),
+  };
 }
 
 export function createGateway(
@@ -177,6 +185,8 @@ export function createGateway(
             { service: route.service, status: result.statusCode },
             'Upstream request failed',
           );
+        if (result.retryAfter !== null)
+          reply.header('retry-after', result.retryAfter);
         return reply.code(result.statusCode).send(result.data);
       },
     });

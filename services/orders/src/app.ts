@@ -17,6 +17,7 @@ import {
   type HealthApp,
 } from '@boba/service-runtime';
 import { z } from 'zod';
+import rateLimit from '@fastify/rate-limit';
 
 const itemSchema = z.strictObject({
   productId: z.uuid(),
@@ -93,34 +94,41 @@ export const createApp = (
     await db.query('SELECT 1');
     await readiness?.();
   });
-  app.get('/menu', async (request) => {
-    const query = menuQuery.parse(request.query);
-    const result = await db.query(
-      `SELECT ${menuColumns} FROM order_menu
-       WHERE ($1::boolean IS NULL OR available = $1)
-       ORDER BY created_at, id`,
-      [query.available ? true : null],
+  app.register(async (menu) => {
+    await menu.register(rateLimit, { max: 120, timeWindow: 60000 });
+    menu.get('/menu', async (request) => {
+      const query = menuQuery.parse(request.query);
+      const result = await db.query(
+        `SELECT ${menuColumns} FROM order_menu
+         WHERE ($1::boolean IS NULL OR available = $1)
+         ORDER BY created_at, id`,
+        [query.available ? true : null],
+      );
+      return { items: result.rows };
+    });
+    menu.post(
+      '/menu',
+      { config: { rateLimit: { max: 30 } } },
+      async (request, reply) => {
+        const input = menuSchema.parse(request.body);
+        const result = await db.query(
+          `INSERT INTO order_menu (id, name, description, unit_price_minor, currency, available)
+           VALUES ($1, $2, $3, $4, $5, $6)
+           ON CONFLICT (lower(trim(name))) DO NOTHING RETURNING ${menuColumns}`,
+          [
+            randomUUID(),
+            input.name,
+            input.description ?? 'Freshly made at the counter.',
+            input.unitPriceMinor,
+            input.currency,
+            input.available,
+          ],
+        );
+        if (!result.rows[0])
+          throw new HttpError(409, 'A menu item with this name already exists');
+        return reply.code(201).send(result.rows[0]);
+      },
     );
-    return { items: result.rows };
-  });
-  app.post('/menu', async (request, reply) => {
-    const input = menuSchema.parse(request.body);
-    const result = await db.query(
-      `INSERT INTO order_menu (id, name, description, unit_price_minor, currency, available)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       ON CONFLICT (lower(trim(name))) DO NOTHING RETURNING ${menuColumns}`,
-      [
-        randomUUID(),
-        input.name,
-        input.description ?? 'Freshly made at the counter.',
-        input.unitPriceMinor,
-        input.currency,
-        input.available,
-      ],
-    );
-    if (!result.rows[0])
-      throw new HttpError(409, 'A menu item with this name already exists');
-    return reply.code(201).send(result.rows[0]);
   });
   app.post('/orders', async (request, reply) => {
     const input = placeSchema.parse(request.body);
