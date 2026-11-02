@@ -12,7 +12,7 @@ permissions:
 engine:
   id: copilot
   max-turns: 12
-max-ai-credits: 10
+max-ai-credits: 100
 timeout-minutes: 10
 concurrency:
   group: factory-plan-${{ github.event.issue.number }}
